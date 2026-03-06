@@ -3,7 +3,7 @@ import { CONFIG } from '../config';
 
 export interface TerrainContext {
   mesh: THREE.Mesh;
-  wireframe: THREE.Mesh;
+  wireframe: THREE.LineSegments;
   getHeightAt: (x: number, z: number) => number;
 }
 
@@ -81,7 +81,7 @@ export function createTerrain(scene: THREE.Scene): TerrainContext {
     opacity: CONFIG.TERRAIN_WIRE_OPACITY,
     depthWrite: false,
   });
-  const wireframe = new THREE.LineSegments(wireGeometry, wireMaterial) as unknown as THREE.Mesh;
+  const wireframe = new THREE.LineSegments(wireGeometry, wireMaterial);
   wireframe.position.y = CONFIG.TERRAIN_Y_OFFSET;
   scene.add(wireframe);
 
