@@ -109,6 +109,13 @@ export function createFreeCamController(terrain: TerrainContext): CameraControll
       cam.position.z = blinkStartPos.z + (blinkTargetPos.z - blinkStartPos.z) * t;
       if (t >= 1) blinking = false;
     } else {
+      if (keys['arrowleft']) {
+        yaw += CONFIG.FREE_CAM_ARROW_LOOK_SPEED * delta;
+      }
+      if (keys['arrowright']) {
+        yaw -= CONFIG.FREE_CAM_ARROW_LOOK_SPEED * delta;
+      }
+
       const speed = CONFIG.FREE_CAM_MOVE_SPEED * delta;
       const fw = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)).normalize();
       const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).normalize();
@@ -121,11 +128,11 @@ export function createFreeCamController(terrain: TerrainContext): CameraControll
         cam.position.x -= fw.x * speed;
         cam.position.z -= fw.z * speed;
       }
-      if (keys['a'] || keys['arrowleft']) {
+      if (keys['a']) {
         cam.position.x -= right.x * speed;
         cam.position.z -= right.z * speed;
       }
-      if (keys['d'] || keys['arrowright']) {
+      if (keys['d']) {
         cam.position.x += right.x * speed;
         cam.position.z += right.z * speed;
       }

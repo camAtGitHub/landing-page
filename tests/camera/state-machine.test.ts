@@ -48,6 +48,18 @@ describe('CameraStateMachine', () => {
     expect(ctrl.updateCalls).toBe(1);
   });
 
+  it('activates initial DESCENT controller exactly once on startup update', () => {
+    const ctrl = mockController();
+    sm.registerController(CameraState.DESCENT, ctrl);
+
+    sm.update(0.016, 0);
+    expect(ctrl.activate).toHaveBeenCalledTimes(1);
+    expect(ctrl.activate).toHaveBeenCalledWith(camera);
+
+    sm.update(0.016, 0.016);
+    expect(ctrl.activate).toHaveBeenCalledTimes(1);
+  });
+
   it('auto-transitions from DESCENT when isComplete returns true', () => {
     const descentCtrl = mockController(true);
     const freeCamCtrl = mockController(false);

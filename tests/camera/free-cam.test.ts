@@ -25,14 +25,27 @@ function mockTerrain(height = CONFIG.TERRAIN_Y_OFFSET) {
   return { getHeightAt: vi.fn().mockReturnValue(height) } as any;
 }
 
+function mockDocumentWithListeners() {
+  const listeners: Record<string, (event: any) => void> = {};
+  return {
+    listeners,
+    addEventListener: vi.fn((type: string, handler: (event: any) => void) => {
+      listeners[type] = handler;
+    }),
+    removeEventListener: vi.fn(),
+  };
+}
+
 describe('FreeCamController', () => {
   let camera: any;
   let terrain: any;
+  let docMock: ReturnType<typeof mockDocumentWithListeners>;
 
   beforeEach(() => {
     camera = mockCamera();
     terrain = mockTerrain();
-    vi.stubGlobal('document', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    docMock = mockDocumentWithListeners();
+    vi.stubGlobal('document', docMock);
     vi.stubGlobal('performance', { now: vi.fn().mockReturnValue(1000) });
   });
 
@@ -77,5 +90,60 @@ describe('FreeCamController', () => {
     const ctrl = createFreeCamController(terrain);
     ctrl.activate(camera);
     expect(() => ctrl.update(camera, 0.016, 0.5)).not.toThrow();
+  });
+
+  it('ArrowLeft increases yaw and ArrowRight decreases yaw', async () => {
+    const { createFreeCamController } = await import('../../src/camera/free-cam');
+    const ctrl = createFreeCamController(terrain);
+    ctrl.activate(camera);
+    ctrl.update(camera, 0.016, 0);
+    const startYaw = camera.rotation.y;
+    const frameDelta = 0.5; // Larger than frame time to make yaw change clearly measurable.
+
+    docMock.listeners.keydown({ key: 'ArrowLeft' });
+    ctrl.update(camera, frameDelta, 0);
+    docMock.listeners.keyup({ key: 'ArrowLeft' });
+    const yawAfterLeft = camera.rotation.y;
+    expect(yawAfterLeft).toBeCloseTo(startYaw + CONFIG.FREE_CAM_ARROW_LOOK_SPEED * frameDelta);
+
+    docMock.listeners.keydown({ key: 'ArrowRight' });
+    ctrl.update(camera, frameDelta, frameDelta);
+    docMock.listeners.keyup({ key: 'ArrowRight' });
+    expect(camera.rotation.y).toBeCloseTo(startYaw);
+  });
+
+  it('ArrowUp/ArrowDown move forward/backward like W/S', async () => {
+    const { createFreeCamController } = await import('../../src/camera/free-cam');
+    const ctrl = createFreeCamController(terrain);
+    ctrl.activate(camera);
+    camera.rotation.y = 0;
+    const startZ = camera.position.z;
+
+    docMock.listeners.keydown({ key: 'ArrowUp' });
+    ctrl.update(camera, 1, 0);
+    docMock.listeners.keyup({ key: 'ArrowUp' });
+    expect(camera.position.z).toBeGreaterThan(startZ);
+
+    docMock.listeners.keydown({ key: 'ArrowDown' });
+    ctrl.update(camera, 1, 1);
+    docMock.listeners.keyup({ key: 'ArrowDown' });
+    expect(camera.position.z).toBeCloseTo(startZ);
+  });
+
+  it('A and D still strafe without rotating yaw', async () => {
+    const { createFreeCamController } = await import('../../src/camera/free-cam');
+    const ctrl = createFreeCamController(terrain);
+    ctrl.activate(camera);
+    ctrl.update(camera, 0.016, 0);
+    const startYaw = camera.rotation.y;
+
+    docMock.listeners.keydown({ key: 'a' });
+    ctrl.update(camera, 1, 0);
+    docMock.listeners.keyup({ key: 'a' });
+
+    docMock.listeners.keydown({ key: 'd' });
+    ctrl.update(camera, 1, 1);
+    docMock.listeners.keyup({ key: 'd' });
+    expect(camera.rotation.y).toBe(startYaw);
   });
 });

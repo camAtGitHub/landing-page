@@ -23,6 +23,7 @@ export class CameraStateMachine {
   private lastTransitionTime = -Infinity;
   private escapeListener: (e: KeyboardEvent) => void;
   private descentComplete = false;
+  private initialized = false;
 
   constructor(camera: THREE.PerspectiveCamera, isMobile: boolean) {
     this.camera = camera;
@@ -100,6 +101,11 @@ export class CameraStateMachine {
   update(delta: number, elapsed: number): void {
     const controller = this.controllers.get(this.currentState);
     if (!controller) return;
+
+    if (!this.initialized && this.currentState === CameraState.DESCENT) {
+      controller.activate(this.camera);
+      this.initialized = true;
+    }
 
     controller.update(this.camera, delta, elapsed);
 
