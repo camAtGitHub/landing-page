@@ -1,4 +1,4 @@
-# ORCHESTRATOR.md — Alien Landing Page Build Instructions
+# Alien Landing Page Build Instructions
 
 ---
 
@@ -57,37 +57,6 @@ Go through every checkbox in "Acceptance Criteria" and confirm each is met.
 Move to the next task or report completion.
 
 ---
-
-## Task Execution Order
-
-Execute tasks in this exact order. Tasks marked with the same parallel group letter CAN be done simultaneously, but if executing sequentially, follow the listed order.
-
-```
-TASK-01  Project Scaffolding & Core Types
-TASK-02  Data Loader
-TASK-03  Scene Foundation
-TASK-04  Terrain Generation
-TASK-05  Starfield & Sky
-TASK-06  Camera State Machine
-TASK-07  Descent Sequence
-TASK-08  Descent HUD Overlay
-TASK-09  Structure Generator Framework
-TASK-10a Crystal Generator          ← parallel group C
-TASK-10b Flora Generator            ← parallel group C
-TASK-10c Mushroom Generator         ← parallel group C
-TASK-10d Vortex Generator           ← parallel group C
-TASK-10e Geometric Generator        ← parallel group C
-TASK-10f Entity Generator           ← parallel group C
-TASK-10g Architecture Generator     ← parallel group C
-TASK-11  Structure Placement & Data Integration
-TASK-12  Free Camera Controls       ← parallel group D
-TASK-13  Fixed/Orbit Camera         ← parallel group D
-TASK-14  HTML Label System
-TASK-15  Particle Systems
-TASK-16  Post-Processing Effects
-TASK-17  Mobile Adaptation & Final Integration
-```
-
 ---
 
 ## Testing Strategy
@@ -311,49 +280,6 @@ npm run build             # clean production build
 
 ---
 
-### TASK-17 Manual Integration Checklist
-
-After final integration, manually verify every item:
-
-```
-[ ] Page loads → loading screen appears ("APPROACHING...")
-[ ] Loading screen fades → descent begins automatically
-[ ] Stars warp during descent (streak upward)
-[ ] HUD overlay visible during descent (corner lines, altitude, velocity)
-[ ] Nebula color layers pass by during descent
-[ ] Escape during descent → skips to surface immediately
-[ ] After descent → structures visible as varied alien formations
-[ ] Each structure type is visually distinct (crystal ≠ flora ≠ mushroom etc.)
-[ ] Priority affects structure size/prominence (Blog biggest, Contact smallest)
-[ ] Labels appear above structures with names and descriptions
-[ ] Clicking a label with relative URL → navigates in same tab
-[ ] Clicking a label with absolute URL → opens new tab
-[ ] Desktop: mouse look rotates camera
-[ ] Desktop: WASD moves camera on terrain
-[ ] Desktop: left click performs blink teleport forward
-[ ] Desktop: blink does NOT trigger when clicking a label
-[ ] Desktop: camera follows terrain height (no flying, smooth Y)
-[ ] Desktop: camera stays within terrain boundary
-[ ] Desktop: Escape toggles to orbit view
-[ ] Desktop: Escape again toggles back to free-cam
-[ ] Orbit view: camera orbits slowly, mouse adds parallax
-[ ] Mobile (or narrow viewport): starts in orbit view after descent
-[ ] Mobile: touch adds parallax to orbit view
-[ ] Mode indicator shows correct text per mode
-[ ] Ambient dust particles float across scene
-[ ] Per-structure particles emit (spores, motes, energy)
-[ ] Bloom glow visible on emissive structures
-[ ] Edit data.json → reload → changes reflected without rebuild
-[ ] Empty data.json [] → empty planet, no crash
-[ ] Unknown type in data.json → falls back to crystal, no crash
-[ ] npm run build → dist/ contains index.html, JS bundle, data.json
-[ ] Serve dist/ with static server → full experience works
-[ ] Chrome, Firefox, Safari → all work
-[ ] Console: no errors (warnings for fallbacks are OK)
-```
-
----
-
 ## Failure Recovery
 
 If a task fails or produces broken output:
@@ -365,19 +291,3 @@ If a task fails or produces broken output:
 5. **Labels don't appear:** Check that `labels.show()` is called after descent ends. Check the 3D→2D projection math. Check `#overlay` exists in HTML.
 6. **Camera broken:** Verify `camera.rotation.order = 'YXZ'`. Check state machine has all controllers registered. Check `activate()` sets initial position.
 
----
-
-## Reference Documents
-
-| File | Contains |
-|------|----------|
-| `AGENTS.md` | Coding standards, stack, conventions, file layout |
-| `01-system-frame-and-bootstrap.md` | Architecture, data schema, constraints, module map |
-| `02-dependency-graph-and-task-overview.md` | Dependencies, execution order, parallel groups, risk register |
-| `03-task-packets-phase1-foundation.md` | TASK-01 through TASK-05 |
-| `04-task-packets-phase2-camera.md` | TASK-06 through TASK-08 |
-| `05-task-packets-phase3-structures-part1.md` | TASK-09, TASK-10a through TASK-10d |
-| `06-task-packets-phase3-structures-part2.md` | TASK-10e through TASK-10g, TASK-11 |
-| `07-task-packets-phase4-5-controllers-ui-effects.md` | TASK-12 through TASK-16 |
-| `08-task-packets-phase6-integration.md` | TASK-17 |
-| `09-visual-reference-guide.md` | Aesthetic targets, color palette, structure type descriptions |
