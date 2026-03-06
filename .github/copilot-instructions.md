@@ -4,7 +4,7 @@
 
 ## READ EVERYTHING BELOW BEFORE STARTING
 
-## SPAWN A NEW SUB-AGENT TO COMPLETE EACH TASK: TASK-01 → TASK-17
+## SPAWN A NEW SUB-AGENT TO COMPLETE EACH TASK: TASK-01 → TASK-04
 
 ## FOLLOW, GENERATE AND COMPLETE THE 'TESTING STRATEGY' AS WRITTEN
 
@@ -21,18 +21,13 @@ Every sub-agent MUST follow these steps before writing any code:
 ### Step 0 — Orient
 1. Read `AGENTS.md` in the project root (coding standards, stack, conventions)
 2. Read `01-system-frame-and-bootstrap.md` (architecture, data schema, constraints)
-3. Read `02-dependency-graph-and-task-overview.md` (dependency graph, execution order, risks)
+3. Read `02-TASK-OVERVIEW-dependencies-and-risks.md`
+4. Read `TASK-00-bootstrap-context.md` and follow it's instructions, completing all tasks successfully.
 
 ### Step 1 — Locate Your Task
-Find your assigned TASK-XX in the appropriate phase document:
-- TASK-01 to TASK-05 → `03-task-packets-phase1-foundation.md`
-- TASK-06 to TASK-08 → `04-task-packets-phase2-camera.md`
-- TASK-09, TASK-10a to TASK-10d → `05-task-packets-phase3-structures-part1.md`
-- TASK-10e to TASK-10g, TASK-11 → `06-task-packets-phase3-structures-part2.md`
-- TASK-12 to TASK-16 → `07-task-packets-phase4-5-controllers-ui-effects.md`
-- TASK-17 → `08-task-packets-phase6-integration.md`
+Find your assigned TASK-XX in the appropriate phase document: `TASKS/TASK-xx-$SUMMARY.md`
 
-Also read `09-visual-reference-guide.md` if your task involves any visual output (structures, terrain, sky, particles, HUD).
+Also read `TASKS/09-visual-reference-guide.md` if your task involves any visual output (structures, terrain, sky, particles, HUD).
 
 ### Step 2 — Verify Dependencies
 Check that all tasks your task depends on are complete:
