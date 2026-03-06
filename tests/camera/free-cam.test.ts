@@ -12,8 +12,9 @@ vi.mock('three', () => ({
 }));
 
 function mockCamera() {
+  const pos = { x: 0, y: CONFIG.TERRAIN_Y_OFFSET + 5, z: 25, set: vi.fn().mockImplementation(function (_x: number, _y: number, _z: number) { pos.x = _x; pos.y = _y; pos.z = _z; }) };
   return {
-    position: { x: 0, y: CONFIG.TERRAIN_Y_OFFSET + 5, z: 25 },
+    position: pos,
     rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
     lookAt: vi.fn(),
     updateProjectionMatrix: vi.fn(),
@@ -50,14 +51,16 @@ describe('FreeCamController', () => {
     expect(document.removeEventListener).toHaveBeenCalled();
   });
 
-  it('update clamps camera X/Z to terrain boundary', async () => {
+  it('update applies boundary pushback when outside boundary', async () => {
     const { createFreeCamController } = await import('../../src/camera/free-cam');
     const ctrl = createFreeCamController(terrain);
     ctrl.activate(camera);
     camera.position.x = 999;
     camera.position.z = 0;
+    const beforeX = camera.position.x;
     ctrl.update(camera, 0.016, 1.0);
-    expect(Math.abs(camera.position.x)).toBeLessThanOrEqual(CONFIG.FREE_CAM_TERRAIN_BOUNDARY_RADIUS + 1);
+    // Pushback reduces x (gradual, not instant hard-clamp)
+    expect(Math.abs(camera.position.x)).toBeLessThan(beforeX);
   });
 
   it('update sets camera Y near terrain height + offset', async () => {
