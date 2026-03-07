@@ -16,6 +16,7 @@ function mockSkyContext(starCount = 10) {
     starSpeeds: new Float32Array(starCount).fill(1.0),
     starMaterial: { opacity: 1.0 } as any,
     nebulae: [],
+    fadeNebulae: vi.fn(),
   };
 }
 

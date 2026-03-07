@@ -7,6 +7,7 @@ export interface SkyContext {
   starSpeeds: Float32Array;
   starMaterial: THREE.PointsMaterial;
   nebulae: THREE.Mesh[];
+  fadeNebulae: (t: number) => void;
 }
 
 export function createSky(scene: THREE.Scene): SkyContext {
@@ -53,6 +54,8 @@ export function createSky(scene: THREE.Scene): SkyContext {
   ];
 
   const nebulae: THREE.Mesh[] = [];
+  const nebulaOriginalOpacities: number[] = [];
+  let nebulaeRemoved = false;
 
   for (const cfg of nebulaConfigs) {
     const geo = new THREE.PlaneGeometry(cfg.scale, cfg.scale);
@@ -69,7 +72,29 @@ export function createSky(scene: THREE.Scene): SkyContext {
     plane.rotation.z = cfg.rotZ;
     scene.add(plane);
     nebulae.push(plane);
+    nebulaOriginalOpacities.push(cfg.opacity);
   }
+
+  const fadeNebulae = (t: number): void => {
+    if (nebulaeRemoved) return;
+
+    const clampedT = THREE.MathUtils.clamp(t, 0, 1);
+    const opacityScale = 1 - clampedT;
+
+    for (let i = 0; i < nebulae.length; i++) {
+      const material = nebulae[i].material;
+      if (material instanceof THREE.MeshBasicMaterial) {
+        material.opacity = nebulaOriginalOpacities[i] * opacityScale;
+      }
+    }
+
+    if (clampedT >= 1) {
+      for (const nebula of nebulae) {
+        scene.remove(nebula);
+      }
+      nebulaeRemoved = true;
+    }
+  };
 
   return {
     stars,
@@ -77,5 +102,6 @@ export function createSky(scene: THREE.Scene): SkyContext {
     starSpeeds,
     starMaterial,
     nebulae,
+    fadeNebulae,
   };
 }

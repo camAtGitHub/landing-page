@@ -13,6 +13,7 @@ import { placeStructures } from './structures/placement';
 import { createLabels } from './ui/labels';
 import { createDescentHUD } from './hud/descent-hud';
 import { createModeIndicator } from './ui/mode-indicator';
+import { createControlHints } from './ui/control-hints';
 import { createAmbientParticles } from './effects/ambient-particles';
 import { createStructureParticles } from './structures/particles';
 import { createPostProcessing } from './effects/post-processing';
@@ -70,6 +71,7 @@ import './structures/generators/architecture';
 
   const hud = createDescentHUD(stateMachine);
   createModeIndicator(stateMachine);
+  createControlHints(stateMachine);
 
   const ambientParticles = createAmbientParticles(ctx.scene);
   const structureParticles = createStructureParticles(instances, ctx.scene);

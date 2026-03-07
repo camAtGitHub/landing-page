@@ -51,6 +51,7 @@ export function createDescentController(
   };
 
   const deactivate = (): void => {
+    sky.fadeNebulae(1);
     active = false;
     document.removeEventListener('mousemove', mouseMoveListener);
   };
@@ -99,6 +100,7 @@ export function createDescentController(
 
     // Star opacity fades
     sky.starMaterial.opacity = Math.max(0.1, 1.0 - progress * 0.9);
+    sky.fadeNebulae(progress);
 
     // Fog density increases
     fog.density = initialFogDensity + progress * 0.006;
