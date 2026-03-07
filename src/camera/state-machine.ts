@@ -24,6 +24,12 @@ export class CameraStateMachine {
   private escapeListener: (e: KeyboardEvent) => void;
   private descentComplete = false;
   private initialized = false;
+  private longPressSkipTimer: ReturnType<typeof setTimeout> | null = null;
+  private mobileTouchStartListener?: (e: TouchEvent) => void;
+  private mobileTouchMoveListener?: (e: TouchEvent) => void;
+  private mobileTouchEndListener?: () => void;
+  private longPressStartX = 0;
+  private longPressStartY = 0;
 
   constructor(camera: THREE.PerspectiveCamera, isMobile: boolean) {
     this.camera = camera;
@@ -39,6 +45,37 @@ export class CameraStateMachine {
       }
     };
     window.addEventListener('keydown', this.escapeListener);
+
+    if (this.isMobile) {
+      this.mobileTouchStartListener = (e: TouchEvent): void => {
+        if (this.currentState !== CameraState.DESCENT || e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        this.longPressStartX = touch.clientX;
+        this.longPressStartY = touch.clientY;
+        this.clearLongPressTimer();
+        this.longPressSkipTimer = setTimeout(() => {
+          this.skip();
+        }, CONFIG.MOBILE_LONG_PRESS_SKIP_MS);
+      };
+
+      this.mobileTouchMoveListener = (e: TouchEvent): void => {
+        if (!this.longPressSkipTimer || e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        const drift = Math.hypot(touch.clientX - this.longPressStartX, touch.clientY - this.longPressStartY);
+        if (drift > CONFIG.MOBILE_LONG_PRESS_MAX_DRIFT_PX) {
+          this.clearLongPressTimer();
+        }
+      };
+
+      this.mobileTouchEndListener = (): void => {
+        this.clearLongPressTimer();
+      };
+
+      window.addEventListener('touchstart', this.mobileTouchStartListener, { passive: true });
+      window.addEventListener('touchmove', this.mobileTouchMoveListener, { passive: true });
+      window.addEventListener('touchend', this.mobileTouchEndListener, { passive: true });
+      window.addEventListener('touchcancel', this.mobileTouchEndListener, { passive: true });
+    }
   }
 
   registerController(state: CameraState, controller: CameraController): void {
@@ -121,7 +158,24 @@ export class CameraStateMachine {
     }
   }
 
+  private clearLongPressTimer(): void {
+    if (!this.longPressSkipTimer) return;
+    clearTimeout(this.longPressSkipTimer);
+    this.longPressSkipTimer = null;
+  }
+
   dispose(): void {
     window.removeEventListener('keydown', this.escapeListener);
+    this.clearLongPressTimer();
+    if (this.mobileTouchStartListener) {
+      window.removeEventListener('touchstart', this.mobileTouchStartListener);
+    }
+    if (this.mobileTouchMoveListener) {
+      window.removeEventListener('touchmove', this.mobileTouchMoveListener);
+    }
+    if (this.mobileTouchEndListener) {
+      window.removeEventListener('touchend', this.mobileTouchEndListener);
+      window.removeEventListener('touchcancel', this.mobileTouchEndListener);
+    }
   }
 }

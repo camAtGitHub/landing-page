@@ -24,7 +24,7 @@ export function createLabels(
       text-transform: uppercase;
       letter-spacing: 1.5px;
       font-size: 12px;
-      padding: 6px 10px;
+      padding: 12px;
       background: rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(4px);
       border: 1px solid rgba(0, 255, 200, 0.3);
@@ -35,7 +35,7 @@ export function createLabels(
       transition: opacity 0.3s ease, border-color 0.2s ease, box-shadow 0.2s ease;
       white-space: nowrap;
       user-select: none;
-      margin-top: -30px;
+      margin: -12px 0 0 -12px;
     }
     .entry-label.priority-high {
       font-size: 15px;
@@ -73,6 +73,9 @@ export function createLabels(
       inner += `<span class="label-desc">${instance.entry.description}</span>`;
     }
     el.innerHTML = inner;
+    el.dataset.worldX = instance.worldPosition.x.toFixed(3);
+    el.dataset.worldY = instance.worldPosition.y.toFixed(3);
+    el.dataset.worldZ = instance.worldPosition.z.toFixed(3);
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -100,6 +103,9 @@ export function createLabels(
 
       projVec.copy(instance.worldPosition);
       projVec.y += instance.boundingRadius + 2;
+      el.dataset.worldX = instance.worldPosition.x.toFixed(3);
+      el.dataset.worldY = (instance.worldPosition.y + instance.boundingRadius * 0.5).toFixed(3);
+      el.dataset.worldZ = instance.worldPosition.z.toFixed(3);
       projVec.project(camera);
 
       if (projVec.z > 1) {

@@ -96,6 +96,30 @@ describe('CameraStateMachine', () => {
     expect(mobileSm.getState()).toBe(CameraState.FIXED_CAM);
   });
 
+  it('mobile long-press skips descent without Escape key', () => {
+    vi.useFakeTimers();
+
+    const eventHandlers: Record<string, (e: any) => void> = {};
+    vi.stubGlobal('window', {
+      addEventListener: vi.fn((name: string, cb: (e: any) => void) => {
+        eventHandlers[name] = cb;
+      }),
+      removeEventListener: vi.fn(),
+    });
+
+    const mobileSm = new CameraStateMachine(mockCamera() as any, true);
+    const descentCtrl = mockController(false);
+    const fixedCtrl = mockController(false);
+    mobileSm.registerController(CameraState.DESCENT, descentCtrl);
+    mobileSm.registerController(CameraState.FIXED_CAM, fixedCtrl);
+
+    eventHandlers.touchstart?.({ touches: [{ clientX: 10, clientY: 10 }] });
+    vi.advanceTimersByTime(2600);
+
+    expect(mobileSm.getState()).toBe(CameraState.FIXED_CAM);
+    vi.useRealTimers();
+  });
+
   it('skip() is a no-op when not in DESCENT', () => {
     const descentCtrl = mockController(false);
     const freeCamCtrl = mockController(false);
