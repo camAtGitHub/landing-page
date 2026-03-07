@@ -25,6 +25,16 @@ export class CameraStateMachine {
   private descentComplete = false;
   private initialized = false;
 
+  private initializeCurrentController(): void {
+    if (this.initialized) return;
+
+    const controller = this.controllers.get(this.currentState);
+    if (!controller) return;
+
+    controller.activate(this.camera);
+    this.initialized = true;
+  }
+
   constructor(camera: THREE.PerspectiveCamera, isMobile: boolean) {
     this.camera = camera;
     this.isMobile = isMobile;
@@ -43,6 +53,7 @@ export class CameraStateMachine {
 
   registerController(state: CameraState, controller: CameraController): void {
     this.controllers.set(state, controller);
+    this.initializeCurrentController();
   }
 
   onStateChange(callback: StateChangeCallback): void {
@@ -99,13 +110,10 @@ export class CameraStateMachine {
   }
 
   update(delta: number, elapsed: number): void {
+    this.initializeCurrentController();
+
     const controller = this.controllers.get(this.currentState);
     if (!controller) return;
-
-    if (!this.initialized && this.currentState === CameraState.DESCENT) {
-      controller.activate(this.camera);
-      this.initialized = true;
-    }
 
     controller.update(this.camera, delta, elapsed);
 
