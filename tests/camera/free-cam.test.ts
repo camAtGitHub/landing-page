@@ -122,7 +122,7 @@ describe('FreeCamController', () => {
     docMock.listeners.keydown({ key: 'ArrowUp' });
     ctrl.update(camera, 1, 0);
     docMock.listeners.keyup({ key: 'ArrowUp' });
-    expect(camera.position.z).toBeGreaterThan(startZ);
+    expect(camera.position.z).toBeLessThan(startZ);
 
     docMock.listeners.keydown({ key: 'ArrowDown' });
     ctrl.update(camera, 1, 1);

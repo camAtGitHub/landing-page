@@ -1,19 +1,28 @@
 import { CameraStateMachine } from '../camera/state-machine';
 import { CameraState } from '../types';
+import { CONFIG } from '../config';
 
 export interface ModeIndicator {
   dispose: () => void;
 }
 
-const MODE_TEXT: Record<CameraState, string> = {
-  [CameraState.DESCENT]: 'ESC to skip',
-  [CameraState.FREE_CAM]: 'WASD move · click blink · ESC simple view',
-  [CameraState.FIXED_CAM]: 'ESC free camera',
-};
+function getModeText(state: CameraState, isMobile: boolean): string {
+  if (state === CameraState.DESCENT) {
+    return isMobile ? 'Hold 2.5s to skip landing' : 'ESC to skip';
+  }
+  if (state === CameraState.FREE_CAM) {
+    return 'WASD move · click blink · ESC simple view';
+  }
+  return isMobile
+    ? 'Drag orbit · pinch zoom · double-tap label blink'
+    : 'ESC free camera';
+}
 
 export function createModeIndicator(stateMachine: CameraStateMachine): ModeIndicator {
   const ui = document.getElementById('ui');
   if (!ui) return { dispose: () => {} };
+
+  const isMobile = window.innerWidth < CONFIG.MOBILE_BREAKPOINT_PX;
 
   const el = document.createElement('div');
   el.style.cssText = `
@@ -27,11 +36,11 @@ export function createModeIndicator(stateMachine: CameraStateMachine): ModeIndic
     pointer-events: none;
     text-transform: uppercase;
   `;
-  el.textContent = MODE_TEXT[stateMachine.getState()];
+  el.textContent = getModeText(stateMachine.getState(), isMobile);
   ui.appendChild(el);
 
   stateMachine.onStateChange((newState) => {
-    el.textContent = MODE_TEXT[newState] ?? '';
+    el.textContent = getModeText(newState, isMobile);
   });
 
   const dispose = (): void => {

@@ -152,12 +152,9 @@ const entityGenerator: StructureGenerator = (seed, priority, color) => {
   light.position.y = bloomRadius * 1.8;
   group.add(light);
 
-  const baseY = rng.range(0.2, 0.6) * scale;
-  group.position.y = baseY;
   const boundingRadius = Math.max(scale * 4.5, 1);
 
   const update = (elapsed: number, _delta: number): void => {
-    group.position.y = baseY + Math.sin(elapsed * 0.4) * (0.11 * scale);
     baseCore.scale.y = 1 + Math.sin(elapsed * 1.6) * 0.06;
 
     pods.forEach((pod, index) => {

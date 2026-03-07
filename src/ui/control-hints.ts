@@ -1,5 +1,6 @@
 import { CameraStateMachine } from '../camera/state-machine';
 import { CameraState } from '../types';
+import { CONFIG } from '../config';
 
 export interface ControlHints {
   dispose: () => void;
@@ -52,9 +53,9 @@ export function createControlHints(stateMachine: CameraStateMachine): ControlHin
   `;
   document.head.appendChild(style);
 
-  const el = document.createElement('div');
-  el.className = 'control-hints';
-  el.innerHTML = `
+  const isMobile = window.innerWidth < CONFIG.MOBILE_BREAKPOINT_PX;
+
+  const desktopHint = `
     <div class="control-hints-row">
       <span><strong>WASD / ↑↓</strong> Move</span>
       <span><strong>Mouse / ←→</strong> Look Around</span>
@@ -64,6 +65,21 @@ export function createControlHints(stateMachine: CameraStateMachine): ControlHin
       <span><strong>ESC</strong> Toggle view</span>
     </div>
   `;
+
+  const mobileHint = `
+    <div class="control-hints-row">
+      <span><strong>Drag</strong> Orbit</span>
+      <span><strong>Pinch</strong> Zoom</span>
+    </div>
+    <div class="control-hints-row">
+      <span class="control-hints-highlight">Double-tap labels to blink</span>
+      <span><strong>Hold 2.5s</strong> Skip descent</span>
+    </div>
+  `;
+
+  const el = document.createElement('div');
+  el.className = 'control-hints';
+  el.innerHTML = isMobile ? mobileHint : desktopHint;
   ui.appendChild(el);
 
   let shown = false;
@@ -133,8 +149,8 @@ export function createControlHints(stateMachine: CameraStateMachine): ControlHin
     document.addEventListener('touchstart', dismissOnInput, { passive: true });
   };
 
-  stateMachine.onStateChange((_newState, oldState) => {
-    if (oldState === CameraState.DESCENT) {
+  stateMachine.onStateChange((newState, oldState) => {
+    if (oldState === CameraState.DESCENT && newState !== CameraState.DESCENT) {
       show();
     }
   });
