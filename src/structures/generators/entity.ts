@@ -8,107 +8,155 @@ const entityGenerator: StructureGenerator = (seed, priority, color) => {
   const scale = priorityScale(priority);
   const group = new THREE.Group();
 
-  const bodyRadius = rng.range(1.5, 3.0) * scale;
+  const stemColor = color.clone().multiplyScalar(0.35);
+  const capColor = color.clone();
+  const gillColor = new THREE.Color(0xff77f5);
 
-  // Dome body (top hemisphere)
-  const domeGeo = new THREE.SphereGeometry(bodyRadius, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
-  const domeMat = createGlowMaterial(color, {
-    emissiveIntensity: 0.5,
-    opacity: 0.35 + rng.range(0, 0.15),
-  });
-  const dome = new THREE.Mesh(domeGeo, domeMat);
-  group.add(dome);
+  const stemCount = rng.int(3, 5);
+  const caps: THREE.Mesh[] = [];
+  const capGlowRings: THREE.Mesh[] = [];
 
-  // Inner core
-  const coreGeo = new THREE.SphereGeometry(bodyRadius * 0.4, 16, 12);
-  const coreColor = color.clone();
-  const coreMat = createGlowMaterial(coreColor, { emissiveIntensity: 0.9, opacity: 0.8 });
-  const core = new THREE.Mesh(coreGeo, coreMat);
-  core.position.y = bodyRadius * 0.15;
-  group.add(core);
+  for (let i = 0; i < stemCount; i++) {
+    const angle = (i / stemCount) * Math.PI * 2 + rng.range(-0.35, 0.35);
+    const radius = rng.range(0.2, 1.2) * scale;
+    const stemHeight = rng.range(3.4, 7.2) * scale;
+    const stemTopRadius = rng.range(0.12, 0.24) * scale;
+    const stemBottomRadius = stemTopRadius * rng.range(1.45, 1.95);
 
-  // Membrane veins
-  for (let v = 0; v < rng.int(3, 5); v++) {
-    const points: THREE.Vector3[] = [];
-    const startAngle = rng.range(0, Math.PI * 2);
-    for (let s = 0; s < 3; s++) {
-      const t = s / 2;
-      const angle = startAngle + rng.range(-0.3, 0.3);
-      const r = bodyRadius * (0.2 + t * 0.7);
-      points.push(new THREE.Vector3(
-        Math.cos(angle) * r,
-        (1 - t) * bodyRadius * 0.8,
-        Math.sin(angle) * r,
-      ));
-    }
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-    const lineMat = new THREE.LineBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const line = new THREE.Line(lineGeo, lineMat);
-    group.add(line);
-  }
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(stemTopRadius, stemBottomRadius, stemHeight, 10, 14),
+      new THREE.MeshStandardMaterial({
+        color: stemColor,
+        emissive: color,
+        emissiveIntensity: 0.35,
+        roughness: 0.55,
+        metalness: 0.2,
+      }),
+    );
+    stem.position.set(
+      Math.cos(angle) * radius,
+      stemHeight * 0.5,
+      Math.sin(angle) * radius,
+    );
+    stem.rotation.z = rng.range(-0.15, 0.15);
+    stem.rotation.x = rng.range(-0.12, 0.12);
+    group.add(stem);
 
-  // Tendrils
-  const tendrilCount = rng.int(5, 12);
-  const tendrilSegments: THREE.Mesh[][] = [];
+    const capRadius = rng.range(1.2, 2.3) * scale;
+    const cap = new THREE.Mesh(
+      new THREE.SphereGeometry(capRadius, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+      createGlowMaterial(capColor.clone(), {
+        emissiveIntensity: 1,
+        opacity: 0.84,
+        roughness: 0.24,
+        metalness: 0.15,
+      }),
+    );
+    (cap.material as THREE.MeshStandardMaterial).depthWrite = false;
+    cap.position.set(stem.position.x, stemHeight, stem.position.z);
+    group.add(cap);
+    caps.push(cap);
 
-  for (let t = 0; t < tendrilCount; t++) {
-    const tendrilAngle = (t / tendrilCount) * Math.PI * 2 + rng.range(-0.2, 0.2);
-    const attachRadius = bodyRadius * rng.range(0.5, 0.9);
-    const tendrilLength = rng.range(3, 8) * scale;
-    const segCount = rng.int(6, 10);
-    const segments: THREE.Mesh[] = [];
-
-    for (let s = 0; s < segCount; s++) {
-      const tParam = s / segCount;
-      const segHeight = tendrilLength / segCount;
-      const segRadius = Math.max(0.02, (0.12 - tParam * 0.1) * scale);
-      const geo = new THREE.CylinderGeometry(segRadius * 0.8, segRadius, segHeight, 5);
-      const mat = createGlowMaterial(color, {
-        emissiveIntensity: 0.4,
-        opacity: Math.max(0.1, 0.7 - tParam * 0.5),
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-
-      // Position along curved tendril path
-      const curveFactor = 0.3;
-      mesh.position.set(
-        Math.cos(tendrilAngle) * (attachRadius + tParam * curveFactor * scale),
-        -(s * segHeight + segHeight / 2),
-        Math.sin(tendrilAngle) * (attachRadius + tParam * curveFactor * scale),
+    const gillCount = rng.int(12, 20);
+    for (let g = 0; g < gillCount; g++) {
+      const gillAngle = (g / gillCount) * Math.PI * 2;
+      const gillLength = capRadius * rng.range(0.55, 0.95);
+      const gill = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03 * scale, 0.03 * scale, gillLength),
+        createGlowMaterial(gillColor, {
+          emissiveIntensity: 1.15,
+          opacity: 0.8,
+          roughness: 0.2,
+          metalness: 0.25,
+        }),
       );
-      group.add(mesh);
-      segments.push(mesh);
+      (gill.material as THREE.MeshStandardMaterial).depthWrite = false;
+      gill.position.set(
+        cap.position.x + Math.cos(gillAngle) * (gillLength * 0.3),
+        cap.position.y - capRadius * 0.65,
+        cap.position.z + Math.sin(gillAngle) * (gillLength * 0.3),
+      );
+      gill.rotation.y = gillAngle;
+      gill.rotation.x = Math.PI * 0.5;
+      group.add(gill);
     }
-    tendrilSegments.push(segments);
+
+    const capRing = new THREE.Mesh(
+      new THREE.TorusGeometry(capRadius * 0.92, 0.05 * scale, 10, 38),
+      createGlowMaterial(gillColor.clone().multiplyScalar(1.1), {
+        emissiveIntensity: 1.25,
+        opacity: 0.78,
+        roughness: 0.22,
+        metalness: 0.2,
+      }),
+    );
+    (capRing.material as THREE.MeshStandardMaterial).depthWrite = false;
+    capRing.position.set(cap.position.x, cap.position.y - capRadius * 0.72, cap.position.z);
+    capRing.rotation.x = Math.PI * 0.5;
+    group.add(capRing);
+    capGlowRings.push(capRing);
   }
 
-  // Float well above ground
-  const floatY = rng.range(4, 8) * scale;
-  group.position.y = floatY;
-  const baseY = floatY;
+  const sporeCount = rng.int(20, 34);
+  const sporeData: Array<{ base: THREE.Vector3; drift: number; phase: number }> = [];
+  const spores: THREE.Mesh[] = [];
+  for (let i = 0; i < sporeCount; i++) {
+    const spore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05 * scale, 6, 6),
+      createGlowMaterial(new THREE.Color(0xffddff), {
+        emissiveIntensity: 1.05,
+        opacity: 0.55,
+        roughness: 0.1,
+        metalness: 0.1,
+      }),
+    );
+    (spore.material as THREE.MeshStandardMaterial).depthWrite = false;
+    const base = new THREE.Vector3(
+      rng.range(-2.5, 2.5) * scale,
+      rng.range(0.8, 8.5) * scale,
+      rng.range(-2.5, 2.5) * scale,
+    );
+    spore.position.set(base.x, base.y, base.z);
+    group.add(spore);
+    spores.push(spore);
+    sporeData.push({
+      base,
+      drift: rng.range(0.08, 0.3) * scale,
+      phase: rng.range(0, Math.PI * 2),
+    });
+  }
 
-  const light = createStructureLight(color, priority, { intensity: priority / 8 + 0.2 });
+  const light = createStructureLight(capColor, priority, {
+    intensity: priority / 7 + 0.35,
+    distance: 20 * scale,
+  });
+  light.position.set(0, 5.5 * scale, 0);
   group.add(light);
 
-  const boundingRadius = Math.max(bodyRadius + 1, 1);
+  const boundingRadius = Math.max(5.5 * scale, 1);
 
   const update = (elapsed: number, _delta: number): void => {
-    // Gentle bobbing
-    group.position.y = baseY + Math.sin(elapsed * 0.4) * 0.5;
+    caps.forEach((cap, index) => {
+      const breath = 1 + Math.sin(elapsed * 1.2 + index * 0.7) * 0.04;
+      cap.scale.x = breath;
+      cap.scale.y = 1 + Math.sin(elapsed * 1.4 + index * 0.9) * 0.06;
+      cap.scale.z = breath;
 
-    // Breathing dome
-    dome.scale.y = 1 + Math.sin(elapsed * 0.6) * 0.05;
+      const capMat = cap.material as THREE.MeshStandardMaterial;
+      capMat.emissiveIntensity = 0.85 + Math.sin(elapsed * 2 + index) * 0.2;
+    });
 
-    // Tendril wave animation
-    tendrilSegments.forEach((segments, ti) => {
-      segments.forEach((seg, si) => {
-        seg.rotation.x = Math.sin(elapsed * 0.5 + si * 0.3) * 0.03;
-        seg.rotation.z = Math.cos(elapsed * 0.5 + ti * 0.4 + si * 0.2) * 0.03;
-      });
+    capGlowRings.forEach((ring, index) => {
+      ring.rotation.z = elapsed * 0.18 + index * 0.8;
+      const mat = ring.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.9 + Math.sin(elapsed * 2.5 + index * 0.4) * 0.3;
+    });
+
+    spores.forEach((spore, index) => {
+      const data = sporeData[index];
+      spore.position.x = data.base.x + Math.sin(elapsed * 0.9 + data.phase) * data.drift;
+      spore.position.y = data.base.y + Math.cos(elapsed * 0.7 + data.phase) * data.drift;
+      spore.position.z = data.base.z + Math.sin(elapsed * 1.1 + data.phase) * data.drift;
     });
   };
 

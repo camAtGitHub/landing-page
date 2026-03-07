@@ -188,4 +188,29 @@ describe('CameraStateMachine', () => {
     expect(consoleSpy).toHaveBeenCalled();
     expect(sm.getState()).toBe(CameraState.DESCENT);
   });
+
+
+  it('mobile long-press skips descent after 2.5 seconds', () => {
+    vi.useFakeTimers();
+    const listenerMap: Record<string, (e: any) => void> = {};
+    vi.stubGlobal('window', {
+      addEventListener: vi.fn((name: string, cb: (e: any) => void) => {
+        listenerMap[name] = cb;
+      }),
+      removeEventListener: vi.fn(),
+    });
+
+    const mobileSm = new CameraStateMachine(mockCamera() as any, true);
+    const descentCtrl = mockController(false);
+    const fixedCtrl = mockController(false);
+    mobileSm.registerController(CameraState.DESCENT, descentCtrl);
+    mobileSm.registerController(CameraState.FIXED_CAM, fixedCtrl);
+
+    listenerMap.touchstart?.({ touches: [{ identifier: 7, clientX: 20, clientY: 20 }] });
+    vi.advanceTimersByTime(2500);
+
+    expect(mobileSm.getState()).toBe(CameraState.FIXED_CAM);
+    vi.useRealTimers();
+  });
+
 });
