@@ -14,6 +14,9 @@ export type StateChangeCallback = (
   oldState: CameraState,
 ) => void;
 
+const MOBILE_SKIP_HOLD_MS = 2500;
+const MOBILE_SKIP_MOVE_PX = 18;
+
 export class CameraStateMachine {
   private camera: THREE.PerspectiveCamera;
   private isMobile: boolean;
@@ -24,6 +27,15 @@ export class CameraStateMachine {
   private escapeListener: (e: KeyboardEvent) => void;
   private descentComplete = false;
   private initialized = false;
+
+  private mobileHoldTimer: ReturnType<typeof setTimeout> | null = null;
+  private mobileHoldTouchId: number | null = null;
+  private mobileHoldStartX = 0;
+  private mobileHoldStartY = 0;
+  private touchStartListener?: (e: TouchEvent) => void;
+  private touchMoveListener?: (e: TouchEvent) => void;
+  private touchEndListener?: () => void;
+  private touchCancelListener?: () => void;
 
   constructor(camera: THREE.PerspectiveCamera, isMobile: boolean) {
     this.camera = camera;
@@ -39,6 +51,65 @@ export class CameraStateMachine {
       }
     };
     window.addEventListener('keydown', this.escapeListener);
+
+    if (this.isMobile) {
+      this.touchStartListener = (e: TouchEvent) => {
+        if (this.currentState !== CameraState.DESCENT || e.touches.length !== 1) return;
+
+        this.cancelMobileHold();
+        const touch = e.touches[0];
+        this.mobileHoldTouchId = touch.identifier;
+        this.mobileHoldStartX = touch.clientX;
+        this.mobileHoldStartY = touch.clientY;
+
+        this.mobileHoldTimer = setTimeout(() => {
+          this.mobileHoldTimer = null;
+          this.mobileHoldTouchId = null;
+          this.skip();
+        }, MOBILE_SKIP_HOLD_MS);
+      };
+
+      this.touchMoveListener = (e: TouchEvent) => {
+        if (this.currentState !== CameraState.DESCENT || this.mobileHoldTouchId === null) return;
+        if (e.touches.length !== 1) {
+          this.cancelMobileHold();
+          return;
+        }
+
+        const touch = e.touches[0];
+        if (touch.identifier !== this.mobileHoldTouchId) {
+          this.cancelMobileHold();
+          return;
+        }
+
+        const dx = touch.clientX - this.mobileHoldStartX;
+        const dy = touch.clientY - this.mobileHoldStartY;
+        if (Math.hypot(dx, dy) > MOBILE_SKIP_MOVE_PX) {
+          this.cancelMobileHold();
+        }
+      };
+
+      this.touchEndListener = () => {
+        this.cancelMobileHold();
+      };
+
+      this.touchCancelListener = () => {
+        this.cancelMobileHold();
+      };
+
+      window.addEventListener('touchstart', this.touchStartListener, { passive: true });
+      window.addEventListener('touchmove', this.touchMoveListener, { passive: true });
+      window.addEventListener('touchend', this.touchEndListener, { passive: true });
+      window.addEventListener('touchcancel', this.touchCancelListener, { passive: true });
+    }
+  }
+
+  private cancelMobileHold(): void {
+    if (this.mobileHoldTimer) {
+      clearTimeout(this.mobileHoldTimer);
+      this.mobileHoldTimer = null;
+    }
+    this.mobileHoldTouchId = null;
   }
 
   registerController(state: CameraState, controller: CameraController): void {
@@ -81,18 +152,16 @@ export class CameraStateMachine {
     const oldState = this.currentState;
     const oldController = this.controllers.get(oldState);
 
-    // Activate new controller first (it sets up initial camera position)
     targetController.activate(this.camera);
 
-    // Then deactivate old controller
     if (oldController) {
       oldController.deactivate();
     }
 
     this.currentState = newState;
     this.lastTransitionTime = now;
+    this.cancelMobileHold();
 
-    // Fire callbacks after transition is complete
     for (const cb of this.callbacks) {
       cb(newState, oldState);
     }
@@ -109,7 +178,6 @@ export class CameraStateMachine {
 
     controller.update(this.camera, delta, elapsed);
 
-    // Auto-transition when descent completes
     if (
       this.currentState === CameraState.DESCENT &&
       controller.isComplete?.() &&
@@ -123,5 +191,19 @@ export class CameraStateMachine {
 
   dispose(): void {
     window.removeEventListener('keydown', this.escapeListener);
+    this.cancelMobileHold();
+
+    if (this.touchStartListener) {
+      window.removeEventListener('touchstart', this.touchStartListener);
+    }
+    if (this.touchMoveListener) {
+      window.removeEventListener('touchmove', this.touchMoveListener);
+    }
+    if (this.touchEndListener) {
+      window.removeEventListener('touchend', this.touchEndListener);
+    }
+    if (this.touchCancelListener) {
+      window.removeEventListener('touchcancel', this.touchCancelListener);
+    }
   }
 }

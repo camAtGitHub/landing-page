@@ -20,6 +20,19 @@ export function createLabels(
     .entry-label {
       position: absolute;
       transform: translate(-50%, -100%);
+      pointer-events: auto;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      white-space: nowrap;
+      user-select: none;
+      margin-top: -30px;
+      padding: 12px;
+      margin-left: -12px;
+      margin-right: -12px;
+      margin-bottom: -12px;
+    }
+    .entry-label .entry-label-inner {
       font-family: 'Courier New', monospace;
       text-transform: uppercase;
       letter-spacing: 1.5px;
@@ -29,18 +42,12 @@ export function createLabels(
       backdrop-filter: blur(4px);
       border: 1px solid rgba(0, 255, 200, 0.3);
       color: rgba(0, 255, 200, 0.8);
-      pointer-events: auto;
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.3s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-      white-space: nowrap;
-      user-select: none;
-      margin-top: -30px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
     }
-    .entry-label.priority-high {
+    .entry-label.priority-high .entry-label-inner {
       font-size: 15px;
     }
-    .entry-label:hover {
+    .entry-label:hover .entry-label-inner {
       border-color: rgba(0, 255, 200, 0.8);
       box-shadow: 0 0 12px rgba(0, 255, 200, 0.3);
       color: rgba(0, 255, 200, 1);
@@ -72,7 +79,7 @@ export function createLabels(
     if (instance.entry.description) {
       inner += `<span class="label-desc">${instance.entry.description}</span>`;
     }
-    el.innerHTML = inner;
+    el.innerHTML = `<div class="entry-label-inner">${inner}</div>`;
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -118,6 +125,8 @@ export function createLabels(
       el.style.display = 'block';
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
+      el.dataset.worldX = instance.worldPosition.x.toFixed(4);
+      el.dataset.worldZ = instance.worldPosition.z.toFixed(4);
     });
   };
 

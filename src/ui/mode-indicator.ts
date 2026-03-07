@@ -5,15 +5,26 @@ export interface ModeIndicator {
   dispose: () => void;
 }
 
-const MODE_TEXT: Record<CameraState, string> = {
+const DESKTOP_MODE_TEXT: Record<CameraState, string> = {
   [CameraState.DESCENT]: 'ESC to skip',
   [CameraState.FREE_CAM]: 'WASD move · click blink · ESC simple view',
   [CameraState.FIXED_CAM]: 'ESC free camera',
 };
 
-export function createModeIndicator(stateMachine: CameraStateMachine): ModeIndicator {
+const MOBILE_MODE_TEXT: Record<CameraState, string> = {
+  [CameraState.DESCENT]: 'Hold 2.5s to skip',
+  [CameraState.FREE_CAM]: 'Swipe look · tap labels · simple view available',
+  [CameraState.FIXED_CAM]: 'Drag orbit · pinch zoom · double tap label blink',
+};
+
+export function createModeIndicator(
+  stateMachine: CameraStateMachine,
+  isMobile: boolean,
+): ModeIndicator {
   const ui = document.getElementById('ui');
   if (!ui) return { dispose: () => {} };
+
+  const modeText = isMobile ? MOBILE_MODE_TEXT : DESKTOP_MODE_TEXT;
 
   const el = document.createElement('div');
   el.style.cssText = `
@@ -27,11 +38,11 @@ export function createModeIndicator(stateMachine: CameraStateMachine): ModeIndic
     pointer-events: none;
     text-transform: uppercase;
   `;
-  el.textContent = MODE_TEXT[stateMachine.getState()];
+  el.textContent = modeText[stateMachine.getState()];
   ui.appendChild(el);
 
   stateMachine.onStateChange((newState) => {
-    el.textContent = MODE_TEXT[newState] ?? '';
+    el.textContent = modeText[newState] ?? '';
   });
 
   const dispose = (): void => {

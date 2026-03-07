@@ -4,6 +4,18 @@ import { TerrainContext } from '../scene/terrain';
 import { StructureRegistry } from './registry';
 import { CONFIG } from '../config';
 
+const TYPE_ALIASES: Record<string, string> = {
+  jellyfish: 'entity',
+  entities: 'entity',
+  creature: 'entity',
+};
+
+function resolveType(typeName: string | undefined): string {
+  if (!typeName) return 'crystal';
+  const normalized = typeName.trim().toLowerCase();
+  return TYPE_ALIASES[normalized] ?? normalized;
+}
+
 export function placeStructures(
   entries: DataEntry[],
   terrain: TerrainContext,
@@ -16,7 +28,8 @@ export function placeStructures(
 
   entries.forEach((entry, index) => {
     // Resolve generator
-    let generator = StructureRegistry.get(entry.type ?? 'crystal');
+    const resolvedType = resolveType(entry.type);
+    let generator = StructureRegistry.get(resolvedType);
     if (!generator) {
       console.warn(`Unknown structure type "${entry.type}", falling back to crystal`);
       generator = StructureRegistry.get('crystal');

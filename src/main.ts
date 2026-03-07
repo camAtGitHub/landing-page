@@ -49,7 +49,7 @@ import './structures/generators/architecture';
 
   const descentCtrl = createDescentController({ sky, scene: ctx.scene, fog });
   const freeCtrl = createFreeCamController(terrain);
-  const fixedCtrl = createFixedCamController();
+  const fixedCtrl = createFixedCamController({ domElement: ctx.renderer.domElement, terrain });
 
   stateMachine.registerController(CameraState.DESCENT, descentCtrl);
   stateMachine.registerController(CameraState.FREE_CAM, freeCtrl);
@@ -70,8 +70,8 @@ import './structures/generators/architecture';
   });
 
   const hud = createDescentHUD(stateMachine);
-  createModeIndicator(stateMachine);
-  createControlHints(stateMachine);
+  createModeIndicator(stateMachine, isMobile);
+  createControlHints(stateMachine, isMobile);
 
   const ambientParticles = createAmbientParticles(ctx.scene);
   const structureParticles = createStructureParticles(instances, ctx.scene);
