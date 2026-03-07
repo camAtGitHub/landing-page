@@ -8,148 +8,132 @@ const architectureGenerator: StructureGenerator = (seed, priority, color) => {
   const scale = priorityScale(priority);
   const group = new THREE.Group();
 
-  const totalHeight = rng.range(6, 15) * scale;
-  const subVariant = rng.int(0, 2); // 0=stepped, 1=monolith, 2=spired
+  const trunkCount = rng.int(1, 2);
+  const trunkHeight = rng.range(7.5, 13.5) * scale;
+  const trunkSegments: THREE.Mesh[] = [];
+  const ribbonSegments: THREE.Mesh[] = [];
+  const canopyNodes: THREE.Mesh[] = [];
 
-  // Dark body color (dark variant of the provided color)
-  const darkColor = color.clone().multiplyScalar(0.2);
+  const darkBark = color.clone().multiplyScalar(0.14);
 
-  const dataCascadeElements: THREE.Mesh[] = [];
-  let maxRadius = 0;
+  for (let t = 0; t < trunkCount; t++) {
+    const trunkPhase = t * Math.PI + rng.range(-0.35, 0.35);
+    const trunkOffset = trunkCount === 1 ? 0 : rng.range(0.5, 0.9) * scale;
+    const segmentCount = rng.int(12, 18);
 
-  if (subVariant === 0) {
-    // Stepped tower
-    const stepCount = rng.int(3, 6);
-    for (let s = 0; s < stepCount; s++) {
-      const t = s / (stepCount - 1);
-      const width = (2.5 - t * 1.8) * scale;
-      const height = rng.range(1, 3) * scale;
-      const geo = new THREE.BoxGeometry(width, height, width * rng.range(0.8, 1.2));
-      const mat = new THREE.MeshStandardMaterial({
-        color: darkColor,
-        emissive: darkColor,
-        emissiveIntensity: 0.15,
-        roughness: 0.3,
-        metalness: 0.8,
-      });
-      const block = new THREE.Mesh(geo, mat);
-      block.position.y = s * (totalHeight / stepCount) + height / 2;
-      group.add(block);
-      if (width / 2 > maxRadius) maxRadius = width / 2;
-    }
-  } else if (subVariant === 1) {
-    // Monolith slab
-    const width = 2 * scale;
-    const depth = 0.6 * scale;
-    const geo = new THREE.BoxGeometry(width, totalHeight, depth);
-    const mat = new THREE.MeshStandardMaterial({
-      color: darkColor,
-      emissive: darkColor,
-      emissiveIntensity: 0.15,
-      roughness: 0.3,
-      metalness: 0.8,
-    });
-    const slab = new THREE.Mesh(geo, mat);
-    slab.position.y = totalHeight / 2;
-    group.add(slab);
-    maxRadius = Math.max(width, depth) / 2;
+    for (let s = 0; s < segmentCount; s++) {
+      const progress = s / Math.max(segmentCount - 1, 1);
+      const spiral = progress * Math.PI * rng.range(2.3, 3.6) + trunkPhase;
+      const radius = trunkOffset + Math.sin(progress * Math.PI) * rng.range(0.12, 0.3) * scale;
+      const segmentHeight = trunkHeight / segmentCount;
 
-    // Protruding elements
-    for (let p = 0; p < rng.int(2, 4); p++) {
-      const proGeo = new THREE.BoxGeometry(0.4 * scale, rng.range(0.5, 2) * scale, 0.4 * scale);
-      const proMat = new THREE.MeshStandardMaterial({
-        color: darkColor, emissive: darkColor, emissiveIntensity: 0.15, roughness: 0.3, metalness: 0.8,
-      });
-      const pro = new THREE.Mesh(proGeo, proMat);
-      pro.position.set(
-        (rng.chance(0.5) ? 1 : -1) * (width / 2 + 0.2 * scale),
-        rng.range(1, totalHeight - 1),
-        0,
+      const trunkSegment = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          (0.35 - progress * 0.2) * scale,
+          (0.44 - progress * 0.22) * scale,
+          segmentHeight,
+          7,
+        ),
+        new THREE.MeshStandardMaterial({
+          color: darkBark,
+          emissive: color,
+          emissiveIntensity: 0.08,
+          transparent: true,
+          opacity: 0.92,
+          roughness: 0.45,
+          metalness: 0.45,
+        }),
       );
-      group.add(pro);
+
+      trunkSegment.position.set(
+        Math.cos(spiral) * radius,
+        0.2 * scale + progress * trunkHeight,
+        Math.sin(spiral) * radius,
+      );
+      trunkSegment.rotation.z = Math.sin(spiral) * 0.28;
+      trunkSegment.rotation.x = Math.cos(spiral) * 0.28;
+      group.add(trunkSegment);
+      trunkSegments.push(trunkSegment);
+
+      if (s % 2 === 0) {
+        const ribbonSegment = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08 * scale, 0.08 * scale, segmentHeight * 1.2, 5),
+          createGlowMaterial(color, { emissiveIntensity: 0.95, opacity: 0.7, roughness: 0.25, metalness: 0.65 }),
+        );
+        (ribbonSegment.material as THREE.MeshStandardMaterial).depthWrite = false;
+        ribbonSegment.position.set(
+          Math.cos(spiral + 0.95) * (radius + 0.28 * scale),
+          trunkSegment.position.y,
+          Math.sin(spiral + 0.95) * (radius + 0.28 * scale),
+        );
+        ribbonSegment.rotation.y = spiral;
+        group.add(ribbonSegment);
+        ribbonSegments.push(ribbonSegment);
+      }
     }
-  } else {
-    // Spired cathedral
-    const sides = rng.int(4, 6);
-    const mainGeo = new THREE.CylinderGeometry(0.5 * scale, 1.2 * scale, totalHeight, sides);
-    const mainMat = new THREE.MeshStandardMaterial({
-      color: darkColor, emissive: darkColor, emissiveIntensity: 0.15, roughness: 0.3, metalness: 0.8,
-    });
-    const main = new THREE.Mesh(mainGeo, mainMat);
-    main.position.y = totalHeight / 2;
-    group.add(main);
-    maxRadius = 1.2 * scale;
 
-    // Flanking spires
-    const spireCount = rng.int(2, 4);
-    for (let sp = 0; sp < spireCount; sp++) {
-      const spireH = totalHeight * rng.range(0.4, 0.7);
-      const angle = (sp / spireCount) * Math.PI * 2;
-      const dist = 1.5 * scale;
-      const spireGeo = new THREE.CylinderGeometry(0.1 * scale, 0.4 * scale, spireH, 4);
-      const spireMat = new THREE.MeshStandardMaterial({
-        color: darkColor, emissive: darkColor, emissiveIntensity: 0.15, roughness: 0.3, metalness: 0.8,
-      });
-      const spire = new THREE.Mesh(spireGeo, spireMat);
-      spire.position.set(Math.cos(angle) * dist, spireH / 2, Math.sin(angle) * dist);
-      group.add(spire);
+    const canopyHeight = trunkHeight + rng.range(0.6, 1.6) * scale;
+    const canopyLayers = rng.int(3, 5);
+    for (let layer = 0; layer < canopyLayers; layer++) {
+      const layerRadius = rng.range(0.8, 2.1) * scale;
+      const shardCount = rng.int(6, 10);
+      for (let shard = 0; shard < shardCount; shard++) {
+        const angle = (shard / shardCount) * Math.PI * 2 + rng.range(-0.2, 0.2);
+        const canopy = new THREE.Mesh(
+          new THREE.BoxGeometry(0.24 * scale, 0.08 * scale, 0.5 * scale),
+          createGlowMaterial(color, { emissiveIntensity: 1.05, opacity: 0.82, roughness: 0.35, metalness: 0.55 }),
+        );
+        (canopy.material as THREE.MeshStandardMaterial).depthWrite = false;
+        canopy.position.set(
+          Math.cos(angle) * layerRadius,
+          canopyHeight + layer * 0.38 * scale + Math.sin(angle * 2) * 0.16 * scale,
+          Math.sin(angle) * layerRadius,
+        );
+        canopy.rotation.y = angle;
+        canopy.rotation.x = rng.range(-0.2, 0.2);
+        group.add(canopy);
+        canopyNodes.push(canopy);
+      }
     }
   }
 
-  // Foundation platform
-  const foundGeo = new THREE.BoxGeometry(maxRadius * 2.5 + scale, 0.3 * scale, maxRadius * 2.5 + scale);
-  const foundMat = new THREE.MeshStandardMaterial({
-    color: darkColor, emissive: darkColor, emissiveIntensity: 0.1, roughness: 0.5, metalness: 0.6,
-  });
-  const foundation = new THREE.Mesh(foundGeo, foundMat);
-  foundation.position.y = 0.15 * scale;
-  group.add(foundation);
-
-  // Glowing window panels
-  const panelCount = rng.int(3, 8);
-  for (let p = 0; p < panelCount; p++) {
-    const panelGeo = new THREE.BoxGeometry(0.15 * scale, 0.1 * scale, 0.05);
-    const panelMat = createGlowMaterial(color, { emissiveIntensity: 0.8, opacity: 0.95 });
-    const panel = new THREE.Mesh(panelGeo, panelMat);
-    panel.position.set(
-      rng.range(-maxRadius, maxRadius) * 0.8,
-      rng.range(0.5, totalHeight * 0.9),
-      maxRadius * rng.range(0.8, 1.0),
+  const baseRoots = rng.int(5, 9);
+  for (let i = 0; i < baseRoots; i++) {
+    const angle = (i / baseRoots) * Math.PI * 2 + rng.range(-0.25, 0.25);
+    const root = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06 * scale, 0.12 * scale, 1.2 * scale, 6),
+      createGlowMaterial(color, { emissiveIntensity: 0.42, opacity: 0.68, roughness: 0.6, metalness: 0.2 }),
     );
-    group.add(panel);
+    root.position.set(Math.cos(angle) * 1.25 * scale, 0.5 * scale, Math.sin(angle) * 1.25 * scale);
+    root.rotation.x = Math.sin(angle) * 0.65;
+    root.rotation.z = Math.cos(angle) * 0.65;
+    group.add(root);
   }
 
-  // Data cascade column
-  const cascadeCount = rng.int(10, 20);
-  for (let c = 0; c < cascadeCount; c++) {
-    const cascGeo = new THREE.BoxGeometry(0.08 * scale, 0.06 * scale, 0.04);
-    const cascMat = createGlowMaterial(color, { emissiveIntensity: 0.9, opacity: 0.8 });
-    const casc = new THREE.Mesh(cascGeo, cascMat);
-    casc.position.set(
-      maxRadius * 1.0,
-      (c / cascadeCount) * totalHeight,
-      maxRadius * 0.5,
-    );
-    group.add(casc);
-    dataCascadeElements.push(casc);
-  }
-
-  const light = createStructureLight(color, priority);
-  light.position.set(0, totalHeight + 1, 0);
+  const light = createStructureLight(color, priority, { intensity: priority / 8 + 0.24, distance: 24 + priority * 2 });
+  light.position.set(0, trunkHeight * 0.8, 0);
   group.add(light);
 
-  const boundingRadius = Math.max(maxRadius + 1, 1);
-
-  let cascadeOffset = 0;
+  const boundingRadius = Math.max(3.1 * scale, 1.2);
 
   const update = (elapsed: number, _delta: number): void => {
-    // Architecture does NOT rotate - only light effects animate
-    const cycleSpeed = 3;
-    cascadeOffset = (elapsed * cycleSpeed) % cascadeCount;
-    dataCascadeElements.forEach((el, i) => {
-      const mat = el.material as THREE.MeshStandardMaterial;
-      const active = ((i + Math.floor(cascadeOffset)) % cascadeCount) < cascadeCount * 0.4;
-      mat.emissiveIntensity = active ? 0.9 : 0.1;
+    trunkSegments.forEach((segment, index) => {
+      const mat = segment.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.06 + (Math.sin(elapsed * 0.9 + index * 0.13) + 1) * 0.03;
+    });
+
+    ribbonSegments.forEach((ribbon, index) => {
+      ribbon.rotation.y += 0.004 + index * 0.00005;
+      const wave = Math.sin(elapsed * 1.4 + index * 0.2) * 0.08;
+      ribbon.scale.x = 1 + wave;
+      ribbon.scale.z = 1 - wave;
+    });
+
+    canopyNodes.forEach((node, index) => {
+      const pulse = 1 + Math.sin(elapsed * 2 + index * 0.35) * 0.12;
+      node.scale.x = pulse;
+      node.scale.y = 1 + Math.sin(elapsed * 1.5 + index * 0.1) * 0.1;
+      node.scale.z = pulse;
     });
   };
 

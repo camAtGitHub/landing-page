@@ -16,6 +16,7 @@ vi.mock('three', () => ({
   DodecahedronGeometry: vi.fn(() => ({ dispose: vi.fn() })),
   TorusGeometry: vi.fn(() => ({ dispose: vi.fn() })),
   SphereGeometry: vi.fn(() => ({ dispose: vi.fn() })),
+  CylinderGeometry: vi.fn(() => ({ dispose: vi.fn() })),
   MeshStandardMaterial: vi.fn(() => ({
     emissiveIntensity: 0.5,
     dispose: vi.fn(),
