@@ -8,148 +8,153 @@ const architectureGenerator: StructureGenerator = (seed, priority, color) => {
   const scale = priorityScale(priority);
   const group = new THREE.Group();
 
-  const totalHeight = rng.range(6, 15) * scale;
-  const subVariant = rng.int(0, 2); // 0=stepped, 1=monolith, 2=spired
+  const trunkHeight = rng.range(6.8, 10.5) * scale;
+  const trunkRadius = rng.range(0.5, 0.85) * scale;
+  const trunkColor = color.clone().multiplyScalar(0.25);
 
-  // Dark body color (dark variant of the provided color)
-  const darkColor = color.clone().multiplyScalar(0.2);
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(trunkRadius * 0.6, trunkRadius, trunkHeight, 10, 22),
+    new THREE.MeshStandardMaterial({
+      color: trunkColor,
+      emissive: trunkColor,
+      emissiveIntensity: 0.2,
+      roughness: 0.55,
+      metalness: 0.22,
+    }),
+  );
+  trunk.position.y = trunkHeight * 0.5;
+  group.add(trunk);
 
-  const dataCascadeElements: THREE.Mesh[] = [];
-  let maxRadius = 0;
+  const helixCount = rng.int(2, 3);
+  const helixSegments: THREE.Mesh[] = [];
+  const helixData: Array<{ direction: number; speed: number; phase: number }> = [];
 
-  if (subVariant === 0) {
-    // Stepped tower
-    const stepCount = rng.int(3, 6);
-    for (let s = 0; s < stepCount; s++) {
-      const t = s / (stepCount - 1);
-      const width = (2.5 - t * 1.8) * scale;
-      const height = rng.range(1, 3) * scale;
-      const geo = new THREE.BoxGeometry(width, height, width * rng.range(0.8, 1.2));
-      const mat = new THREE.MeshStandardMaterial({
-        color: darkColor,
-        emissive: darkColor,
-        emissiveIntensity: 0.15,
-        roughness: 0.3,
-        metalness: 0.8,
-      });
-      const block = new THREE.Mesh(geo, mat);
-      block.position.y = s * (totalHeight / stepCount) + height / 2;
-      group.add(block);
-      if (width / 2 > maxRadius) maxRadius = width / 2;
-    }
-  } else if (subVariant === 1) {
-    // Monolith slab
-    const width = 2 * scale;
-    const depth = 0.6 * scale;
-    const geo = new THREE.BoxGeometry(width, totalHeight, depth);
-    const mat = new THREE.MeshStandardMaterial({
-      color: darkColor,
-      emissive: darkColor,
-      emissiveIntensity: 0.15,
-      roughness: 0.3,
-      metalness: 0.8,
-    });
-    const slab = new THREE.Mesh(geo, mat);
-    slab.position.y = totalHeight / 2;
-    group.add(slab);
-    maxRadius = Math.max(width, depth) / 2;
+  for (let h = 0; h < helixCount; h++) {
+    const direction = h % 2 === 0 ? 1 : -1;
+    const phase = rng.range(0, Math.PI * 2);
+    const segmentCount = rng.int(24, 34);
+    const helixRadius = trunkRadius * rng.range(0.95, 1.3);
 
-    // Protruding elements
-    for (let p = 0; p < rng.int(2, 4); p++) {
-      const proGeo = new THREE.BoxGeometry(0.4 * scale, rng.range(0.5, 2) * scale, 0.4 * scale);
-      const proMat = new THREE.MeshStandardMaterial({
-        color: darkColor, emissive: darkColor, emissiveIntensity: 0.15, roughness: 0.3, metalness: 0.8,
-      });
-      const pro = new THREE.Mesh(proGeo, proMat);
-      pro.position.set(
-        (rng.chance(0.5) ? 1 : -1) * (width / 2 + 0.2 * scale),
-        rng.range(1, totalHeight - 1),
-        0,
+    for (let s = 0; s < segmentCount; s++) {
+      const t = s / Math.max(segmentCount - 1, 1);
+      const angle = direction * t * Math.PI * rng.range(5.5, 7.5) + phase;
+      const segment = new THREE.Mesh(
+        new THREE.CylinderGeometry(trunkRadius * 0.035, trunkRadius * 0.05, trunkHeight / segmentCount, 6),
+        createGlowMaterial(new THREE.Color(0x62fff2), {
+          emissiveIntensity: 1,
+          opacity: 0.92,
+          roughness: 0.28,
+          metalness: 0.5,
+        }),
       );
-      group.add(pro);
-    }
-  } else {
-    // Spired cathedral
-    const sides = rng.int(4, 6);
-    const mainGeo = new THREE.CylinderGeometry(0.5 * scale, 1.2 * scale, totalHeight, sides);
-    const mainMat = new THREE.MeshStandardMaterial({
-      color: darkColor, emissive: darkColor, emissiveIntensity: 0.15, roughness: 0.3, metalness: 0.8,
-    });
-    const main = new THREE.Mesh(mainGeo, mainMat);
-    main.position.y = totalHeight / 2;
-    group.add(main);
-    maxRadius = 1.2 * scale;
-
-    // Flanking spires
-    const spireCount = rng.int(2, 4);
-    for (let sp = 0; sp < spireCount; sp++) {
-      const spireH = totalHeight * rng.range(0.4, 0.7);
-      const angle = (sp / spireCount) * Math.PI * 2;
-      const dist = 1.5 * scale;
-      const spireGeo = new THREE.CylinderGeometry(0.1 * scale, 0.4 * scale, spireH, 4);
-      const spireMat = new THREE.MeshStandardMaterial({
-        color: darkColor, emissive: darkColor, emissiveIntensity: 0.15, roughness: 0.3, metalness: 0.8,
-      });
-      const spire = new THREE.Mesh(spireGeo, spireMat);
-      spire.position.set(Math.cos(angle) * dist, spireH / 2, Math.sin(angle) * dist);
-      group.add(spire);
+      (segment.material as THREE.MeshStandardMaterial).depthWrite = false;
+      segment.position.set(
+        Math.cos(angle) * helixRadius,
+        t * trunkHeight,
+        Math.sin(angle) * helixRadius,
+      );
+      segment.rotation.z = Math.PI / 2;
+      group.add(segment);
+      helixSegments.push(segment);
+      helixData.push({ direction, speed: rng.range(0.2, 0.45), phase: phase + s * 0.07 });
     }
   }
 
-  // Foundation platform
-  const foundGeo = new THREE.BoxGeometry(maxRadius * 2.5 + scale, 0.3 * scale, maxRadius * 2.5 + scale);
-  const foundMat = new THREE.MeshStandardMaterial({
-    color: darkColor, emissive: darkColor, emissiveIntensity: 0.1, roughness: 0.5, metalness: 0.6,
+  const canopyClusterCount = rng.int(4, 7);
+  const leaves: THREE.Mesh[] = [];
+  for (let c = 0; c < canopyClusterCount; c++) {
+    const clusterAngle = (c / canopyClusterCount) * Math.PI * 2 + rng.range(-0.25, 0.25);
+    const clusterHeight = trunkHeight * rng.range(0.7, 0.95);
+    const branchLen = rng.range(1.4, 2.6) * scale;
+
+    const branch = new THREE.Mesh(
+      new THREE.CylinderGeometry(trunkRadius * 0.06, trunkRadius * 0.12, branchLen, 8),
+      new THREE.MeshStandardMaterial({
+        color: trunkColor,
+        emissive: color,
+        emissiveIntensity: 0.2,
+        roughness: 0.5,
+        metalness: 0.2,
+      }),
+    );
+    branch.position.set(
+      Math.cos(clusterAngle) * branchLen * 0.4,
+      clusterHeight,
+      Math.sin(clusterAngle) * branchLen * 0.4,
+    );
+    branch.rotation.z = Math.PI / 2;
+    branch.rotation.y = clusterAngle;
+    group.add(branch);
+
+    const leafCount = rng.int(5, 8);
+    for (let l = 0; l < leafCount; l++) {
+      const leaf = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          rng.range(0.2, 0.48) * scale,
+          rng.range(0.16, 0.28) * scale,
+          rng.range(0.35, 0.62) * scale,
+        ),
+        createGlowMaterial(color.clone(), {
+          emissiveIntensity: 0.85,
+          opacity: 0.75,
+          roughness: 0.35,
+          metalness: 0.2,
+        }),
+      );
+      (leaf.material as THREE.MeshStandardMaterial).depthWrite = false;
+      leaf.position.set(
+        Math.cos(clusterAngle) * branchLen + rng.range(-0.35, 0.35) * scale,
+        clusterHeight + rng.range(-0.2, 0.6) * scale,
+        Math.sin(clusterAngle) * branchLen + rng.range(-0.35, 0.35) * scale,
+      );
+      group.add(leaf);
+      leaves.push(leaf);
+    }
+  }
+
+  const rootCount = rng.int(7, 10);
+  for (let r = 0; r < rootCount; r++) {
+    const rootAngle = (r / rootCount) * Math.PI * 2 + rng.range(-0.2, 0.2);
+    const rootLen = rng.range(1.7, 3.2) * scale;
+    const root = new THREE.Mesh(
+      new THREE.CylinderGeometry(trunkRadius * 0.045, trunkRadius * 0.09, rootLen, 7),
+      new THREE.MeshStandardMaterial({
+        color: trunkColor,
+        emissive: color,
+        emissiveIntensity: 0.14,
+        roughness: 0.6,
+        metalness: 0.2,
+      }),
+    );
+    root.position.set(
+      Math.cos(rootAngle) * rootLen * 0.5,
+      rootLen * 0.08,
+      Math.sin(rootAngle) * rootLen * 0.5,
+    );
+    root.rotation.z = Math.PI / 2;
+    root.rotation.y = rootAngle;
+    group.add(root);
+  }
+
+  const light = createStructureLight(color.clone(), priority, {
+    intensity: priority / 7 + 0.35,
+    distance: 24 * scale,
   });
-  const foundation = new THREE.Mesh(foundGeo, foundMat);
-  foundation.position.y = 0.15 * scale;
-  group.add(foundation);
-
-  // Glowing window panels
-  const panelCount = rng.int(3, 8);
-  for (let p = 0; p < panelCount; p++) {
-    const panelGeo = new THREE.BoxGeometry(0.15 * scale, 0.1 * scale, 0.05);
-    const panelMat = createGlowMaterial(color, { emissiveIntensity: 0.8, opacity: 0.95 });
-    const panel = new THREE.Mesh(panelGeo, panelMat);
-    panel.position.set(
-      rng.range(-maxRadius, maxRadius) * 0.8,
-      rng.range(0.5, totalHeight * 0.9),
-      maxRadius * rng.range(0.8, 1.0),
-    );
-    group.add(panel);
-  }
-
-  // Data cascade column
-  const cascadeCount = rng.int(10, 20);
-  for (let c = 0; c < cascadeCount; c++) {
-    const cascGeo = new THREE.BoxGeometry(0.08 * scale, 0.06 * scale, 0.04);
-    const cascMat = createGlowMaterial(color, { emissiveIntensity: 0.9, opacity: 0.8 });
-    const casc = new THREE.Mesh(cascGeo, cascMat);
-    casc.position.set(
-      maxRadius * 1.0,
-      (c / cascadeCount) * totalHeight,
-      maxRadius * 0.5,
-    );
-    group.add(casc);
-    dataCascadeElements.push(casc);
-  }
-
-  const light = createStructureLight(color, priority);
-  light.position.set(0, totalHeight + 1, 0);
+  light.position.y = trunkHeight + 0.8 * scale;
   group.add(light);
 
-  const boundingRadius = Math.max(maxRadius + 1, 1);
-
-  let cascadeOffset = 0;
+  const boundingRadius = Math.max(scale * 3.2, 1);
 
   const update = (elapsed: number, _delta: number): void => {
-    // Architecture does NOT rotate - only light effects animate
-    const cycleSpeed = 3;
-    cascadeOffset = (elapsed * cycleSpeed) % cascadeCount;
-    dataCascadeElements.forEach((el, i) => {
-      const mat = el.material as THREE.MeshStandardMaterial;
-      const active = ((i + Math.floor(cascadeOffset)) % cascadeCount) < cascadeCount * 0.4;
-      mat.emissiveIntensity = active ? 0.9 : 0.1;
+    helixSegments.forEach((segment, index) => {
+      const data = helixData[index];
+      segment.rotation.y = Math.sin(elapsed * data.speed + data.phase) * (0.5 * data.direction);
+      const mat = segment.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = 0.8 + Math.sin(elapsed * 1.5 + data.phase) * 0.22;
+    });
+
+    leaves.forEach((leaf, index) => {
+      leaf.position.y += Math.sin(elapsed * 0.8 + index * 0.3) * 0.0008;
     });
   };
 
