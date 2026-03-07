@@ -5,7 +5,7 @@ export interface ControlHints {
   dispose: () => void;
 }
 
-export function createControlHints(stateMachine: CameraStateMachine): ControlHints {
+export function createControlHints(stateMachine: CameraStateMachine, isMobile: boolean): ControlHints {
   const ui = document.getElementById('ui');
   if (!ui) return { dispose: () => {} };
 
@@ -16,7 +16,7 @@ export function createControlHints(stateMachine: CameraStateMachine): ControlHin
       left: 50%;
       bottom: 15%;
       transform: translateX(-50%);
-      max-width: 500px;
+      max-width: 560px;
       width: calc(100% - 48px);
       padding: 16px 24px;
       border: 1px solid rgba(0, 255, 200, 0.15);
@@ -52,9 +52,7 @@ export function createControlHints(stateMachine: CameraStateMachine): ControlHin
   `;
   document.head.appendChild(style);
 
-  const el = document.createElement('div');
-  el.className = 'control-hints';
-  el.innerHTML = `
+  const desktopMarkup = `
     <div class="control-hints-row">
       <span><strong>WASD / ↑↓</strong> Move</span>
       <span><strong>Mouse / ←→</strong> Look Around</span>
@@ -64,6 +62,21 @@ export function createControlHints(stateMachine: CameraStateMachine): ControlHin
       <span><strong>ESC</strong> Toggle view</span>
     </div>
   `;
+
+  const mobileMarkup = `
+    <div class="control-hints-row">
+      <span><strong>Drag</strong> Orbit</span>
+      <span><strong>Pinch</strong> Zoom</span>
+    </div>
+    <div class="control-hints-row">
+      <span class="control-hints-highlight"><strong>Double tap</strong> label to blink</span>
+      <span><strong>Hold 2.5s</strong> skip descent</span>
+    </div>
+  `;
+
+  const el = document.createElement('div');
+  el.className = 'control-hints';
+  el.innerHTML = isMobile ? mobileMarkup : desktopMarkup;
   ui.appendChild(el);
 
   let shown = false;

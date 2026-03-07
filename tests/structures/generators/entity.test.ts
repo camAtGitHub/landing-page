@@ -14,6 +14,8 @@ vi.mock('three', () => ({
   }),
   SphereGeometry: vi.fn(() => ({ dispose: vi.fn() })),
   CylinderGeometry: vi.fn(() => ({ dispose: vi.fn() })),
+  BoxGeometry: vi.fn(() => ({ dispose: vi.fn() })),
+  TorusGeometry: vi.fn(() => ({ dispose: vi.fn() })),
   BufferGeometry: vi.fn(() => ({
     dispose: vi.fn(),
     setFromPoints: vi.fn().mockReturnThis(),

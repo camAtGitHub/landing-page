@@ -77,14 +77,17 @@ export function createFreeCamController(terrain: TerrainContext): CameraControll
   const activate = (cam: THREE.PerspectiveCamera): void => {
     camera = cam;
     cam.rotation.order = 'YXZ';
-    cam.position.set(0, CONFIG.TERRAIN_Y_OFFSET + CONFIG.FREE_CAM_HEIGHT_ABOVE_TERRAIN, 25);
-    yaw = Math.PI;
-    pitch = 0;
+
+    yaw = cam.rotation.y;
+    pitch = Math.max(CONFIG.FREE_CAM_PITCH_MIN, Math.min(CONFIG.FREE_CAM_PITCH_MAX, cam.rotation.x));
     lastMouseX = -1;
     lastMouseY = -1;
     blinking = false;
-    currentHeight = CONFIG.TERRAIN_Y_OFFSET + CONFIG.FREE_CAM_HEIGHT_ABOVE_TERRAIN;
-    targetHeight = currentHeight;
+
+    const terrainY = terrain.getHeightAt(cam.position.x, cam.position.z);
+    targetHeight = terrainY + CONFIG.FREE_CAM_HEIGHT_ABOVE_TERRAIN;
+    currentHeight = Math.max(cam.position.y, targetHeight);
+    cam.position.y = currentHeight;
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('keydown', onKeyDown);
