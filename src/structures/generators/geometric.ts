@@ -8,84 +8,118 @@ const geometricGenerator: StructureGenerator = (seed, priority, color) => {
   const scale = priorityScale(priority);
   const group = new THREE.Group();
 
-  const bodyRadius = rng.range(0.8, 1.8) * scale;
-  const shapeType = rng.int(0, 2);
+  const orbRadius = rng.range(1.8, 3.4) * scale;
 
-  // Central body - platonic solid
-  let bodyGeo: THREE.BufferGeometry;
-  switch (shapeType) {
-    case 0: bodyGeo = new THREE.IcosahedronGeometry(bodyRadius, 0); break;
-    case 1: bodyGeo = new THREE.OctahedronGeometry(bodyRadius, 0); break;
-    default: bodyGeo = new THREE.DodecahedronGeometry(bodyRadius, 0); break;
-  }
-  const bodyMat = createGlowMaterial(color, { emissiveIntensity: 0.7 + rng.range(0, 0.3), opacity: 0.9 });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  group.add(body);
+  const coreColor = color.clone().multiplyScalar(1.2);
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(orbRadius * 0.66, 20, 14),
+    createGlowMaterial(coreColor, { emissiveIntensity: 1.2, opacity: 0.9 }),
+  );
+  (core.material as THREE.MeshStandardMaterial).depthWrite = false;
+  group.add(core);
 
-  // Orbital rings
-  const ringCount = rng.int(1, 3);
-  const rings: THREE.Mesh[] = [];
-  for (let r = 0; r < ringCount; r++) {
-    const ringRadius = bodyRadius * rng.range(1.5, 2.5);
-    const tubeRadius = rng.range(0.03, 0.08) * scale;
-    const geo = new THREE.TorusGeometry(ringRadius, tubeRadius, 16, 64);
-    const mat = createGlowMaterial(color, { emissiveIntensity: 0.6, opacity: 0.7 });
-    const ring = new THREE.Mesh(geo, mat);
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(orbRadius, 22, 16),
+    createGlowMaterial(color, { emissiveIntensity: 0.5, opacity: 0.2, roughness: 0.05, metalness: 0.95 }),
+  );
+  (shell.material as THREE.MeshStandardMaterial).depthWrite = false;
+  group.add(shell);
+
+  const latticeRings: THREE.Mesh[] = [];
+  const ringCount = rng.int(8, 14);
+  for (let i = 0; i < ringCount; i++) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(orbRadius * rng.range(0.72, 0.95), 0.035 * scale, 8, 48),
+      createGlowMaterial(color, { emissiveIntensity: 0.95, opacity: 0.72 }),
+    );
+    (ring.material as THREE.MeshStandardMaterial).depthWrite = false;
     ring.rotation.x = rng.range(0, Math.PI);
+    ring.rotation.y = rng.range(0, Math.PI);
     ring.rotation.z = rng.range(0, Math.PI);
     group.add(ring);
-    rings.push(ring);
+    latticeRings.push(ring);
   }
 
-  // Aura dots
-  const dotCount = rng.int(10, 20);
-  const dotPositions: THREE.Vector3[] = [];
-  for (let d = 0; d < dotCount; d++) {
-    const dotGeo = new THREE.SphereGeometry(rng.range(0.05, 0.1), 4, 4);
-    const dotMat = createGlowMaterial(color, { emissiveIntensity: 0.8, opacity: 0.6 });
-    const dot = new THREE.Mesh(dotGeo, dotMat);
-    const angle1 = rng.range(0, Math.PI * 2);
-    const angle2 = rng.range(0, Math.PI);
-    const dist = bodyRadius * rng.range(1.0, 2.0);
-    const pos = new THREE.Vector3(
-      Math.sin(angle2) * Math.cos(angle1) * dist,
-      Math.cos(angle2) * dist,
-      Math.sin(angle2) * Math.sin(angle1) * dist,
+  const rootSegments: THREE.Mesh[] = [];
+  const rootStrands = rng.int(4, 7);
+  for (let strand = 0; strand < rootStrands; strand++) {
+    const strandAngle = (strand / rootStrands) * Math.PI * 2 + rng.range(-0.2, 0.2);
+    const segCount = rng.int(4, 7);
+    for (let s = 0; s < segCount; s++) {
+      const t = s / Math.max(segCount - 1, 1);
+      const segment = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08 * scale * (1 - t * 0.5), 0.11 * scale * (1 - t * 0.4), 0.35 * scale, 6),
+        createGlowMaterial(color, { emissiveIntensity: 0.35, opacity: 0.76, roughness: 0.6, metalness: 0.25 }),
+      );
+      const radial = orbRadius * (0.55 + t * 0.9);
+      segment.position.set(
+        Math.cos(strandAngle + t * 0.5) * radial,
+        -orbRadius * 0.9 - t * 0.3 * scale,
+        Math.sin(strandAngle + t * 0.5) * radial,
+      );
+      segment.rotation.x = rng.range(-0.2, 0.2);
+      segment.rotation.y = strandAngle + Math.PI / 2;
+      segment.rotation.z = rng.range(-0.2, 0.2);
+      group.add(segment);
+      rootSegments.push(segment);
+    }
+  }
+
+  const sparkMeshes: THREE.Mesh[] = [];
+  const sparkBase: { radius: number; speed: number; offset: number; height: number }[] = [];
+  const sparkCount = rng.int(10, 18);
+  for (let i = 0; i < sparkCount; i++) {
+    const spark = new THREE.Mesh(
+      new THREE.SphereGeometry(0.045 * scale, 6, 6),
+      createGlowMaterial(color, { emissiveIntensity: 1.3, opacity: 0.95 }),
     );
-    dot.position.copy(pos);
-    dotPositions.push(pos.clone());
-    group.add(dot);
+    (spark.material as THREE.MeshStandardMaterial).depthWrite = false;
+    group.add(spark);
+    sparkMeshes.push(spark);
+    sparkBase.push({
+      radius: orbRadius * rng.range(0.65, 1.25),
+      speed: rng.range(0.5, 1.3),
+      offset: rng.range(0, Math.PI * 2),
+      height: rng.range(-orbRadius * 0.6, orbRadius * 0.6),
+    });
   }
 
-  // Float above ground - local Y offset
-  const floatHeight = rng.range(2, 5) * scale;
-  group.position.y = floatHeight;
-
-  const light = createStructureLight(color, priority, { intensity: priority / 9 + 0.1 });
+  group.position.y = rng.range(2.4, 4.2) * scale;
+  const light = createStructureLight(color, priority, { intensity: priority / 8 + 0.25, distance: 22 + priority * 2 });
   group.add(light);
 
-  const boundingRadius = Math.max(bodyRadius * 2.5, 1);
-
-  const auraStartIdx = 1 + ringCount; // body (0) + rings
+  const boundingRadius = orbRadius * 1.9;
 
   const update = (elapsed: number, _delta: number): void => {
-    body.rotation.y = elapsed * 0.1;
-    body.rotation.x = elapsed * 0.07;
+    const corePulse = 1 + Math.sin(elapsed * 1.6) * 0.06;
+    core.scale.x = corePulse;
+    core.scale.y = corePulse;
+    core.scale.z = corePulse;
 
-    rings.forEach((ring, i) => {
-      ring.rotation.y = elapsed * (0.2 + i * 0.15) * (i % 2 === 0 ? 1 : -1);
+    const shellPulse = 1 + Math.sin(elapsed * 0.8 + seed) * 0.03;
+    shell.scale.x = shellPulse;
+    shell.scale.y = shellPulse;
+    shell.scale.z = shellPulse;
+
+    latticeRings.forEach((ring, index) => {
+      const direction = index % 2 === 0 ? 1 : -1;
+      ring.rotation.x += 0.0025 * direction;
+      ring.rotation.y += 0.0018 * (index + 1) * 0.2;
+      ring.rotation.z += 0.0012 * direction;
     });
 
-    // Slowly orbit aura dots
-    let di = 0;
-    group.children.forEach((child, idx) => {
-      if (idx >= auraStartIdx && child instanceof THREE.Mesh && dotPositions[di]) {
-        const basePos = dotPositions[di];
-        const angle = elapsed * 0.3 + di * 0.8;
-        child.position.x = basePos.x * Math.cos(angle) - basePos.z * Math.sin(angle);
-        child.position.z = basePos.x * Math.sin(angle) + basePos.z * Math.cos(angle);
-        di++;
-      }
+    rootSegments.forEach((segment, index) => {
+      segment.rotation.z = Math.sin(elapsed * 0.9 + index * 0.25) * 0.12;
+    });
+
+    sparkMeshes.forEach((spark, index) => {
+      const data = sparkBase[index];
+      const angle = elapsed * data.speed + data.offset;
+      spark.position.set(
+        Math.cos(angle) * data.radius,
+        data.height + Math.sin(elapsed * 1.4 + data.offset) * 0.25,
+        Math.sin(angle) * data.radius,
+      );
     });
   };
 
