@@ -102,7 +102,7 @@ export class CameraStateMachine {
     const controller = this.controllers.get(this.currentState);
     if (!controller) return;
 
-    if (!this.initialized && this.currentState === CameraState.DESCENT) {
+    if (!this.initialized) {
       controller.activate(this.camera);
       this.initialized = true;
     }
