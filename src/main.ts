@@ -56,7 +56,7 @@ import './structures/generators/architecture';
   stateMachine.registerController(CameraState.FREE_CAM, freeCtrl);
   stateMachine.registerController(CameraState.FIXED_CAM, fixedCtrl);
 
-  const instances = placeStructures(entries, terrain, ctx.scene);
+  const instances = placeStructures(entries, terrain, ctx.scene, siteData.config.randomize);
 
   const labels = createLabels(instances, ctx.camera);
   labels.hide();

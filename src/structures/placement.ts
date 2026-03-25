@@ -16,15 +16,37 @@ function resolveType(typeName: string | undefined): string {
   return TYPE_ALIASES[normalized] ?? normalized;
 }
 
+/**
+ * Fisher-Yates shuffle (returns a new array, does not mutate input).
+ */
+function shuffleArray<T>(arr: readonly T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 export function placeStructures(
   entries: DataEntry[],
   terrain: TerrainContext,
   scene: THREE.Scene,
+  randomize = false,
 ): StructureInstance[] {
   if (entries.length === 0) return [];
 
   const instances: StructureInstance[] = [];
   const neonColors = CONFIG.NEON_COLORS;
+
+  // When randomizing: shuffle color order and pick a random starting angle
+  const colorOrder = randomize
+    ? shuffleArray(Array.from({ length: neonColors.length }, (_, i) => i))
+    : Array.from({ length: neonColors.length }, (_, i) => i);
+
+  const angleOffset = randomize
+    ? Math.random() * Math.PI * 2
+    : Math.PI / 6;
 
   entries.forEach((entry, index) => {
     // Resolve generator
@@ -39,8 +61,9 @@ export function placeStructures(
       return;
     }
 
-    // Color from neon palette
-    const colorHex = neonColors[index % neonColors.length];
+    // Color from neon palette (shuffled when randomizing)
+    const colorIndex = colorOrder[index % colorOrder.length];
+    const colorHex = neonColors[colorIndex];
     const color = new THREE.Color(colorHex);
 
     // Seed is guaranteed by the data loader
@@ -52,12 +75,20 @@ export function placeStructures(
     // Compute placement radius (higher priority = closer to center)
     const maxPriority = Math.max(...entries.map(e => e.priority));
     const normalizedPriority = maxPriority > 0 ? entry.priority / maxPriority : 0;
-    const radius =
+    let radius =
       CONFIG.STRUCTURE_MIN_RADIUS +
       (1 - normalizedPriority) * (CONFIG.STRUCTURE_MAX_RADIUS - CONFIG.STRUCTURE_MIN_RADIUS);
 
-    // Angular distribution with slight offset so first entry doesn't face camera directly
-    const angleOffset = Math.PI / 6;
+    // Add radius jitter when randomizing (±15% keeps priority ordering but shifts positions)
+    if (randomize) {
+      const jitter = 1 + (Math.random() - 0.5) * 0.3;
+      radius = Math.max(
+        CONFIG.STRUCTURE_MIN_RADIUS,
+        Math.min(CONFIG.STRUCTURE_MAX_RADIUS, radius * jitter),
+      );
+    }
+
+    // Angular distribution
     const angle = angleOffset + (index / entries.length) * Math.PI * 2;
 
     const x = Math.cos(angle) * radius;
