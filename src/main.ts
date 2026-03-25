@@ -50,7 +50,7 @@ import './structures/generators/architecture';
 
   const descentCtrl = createDescentController({ sky, scene: ctx.scene, fog });
   const freeCtrl = createFreeCamController(terrain, ctx.scene);
-  const fixedCtrl = createFixedCamController({ domElement: ctx.renderer.domElement, terrain });
+  const fixedCtrl = createFixedCamController({ domElement: ctx.renderer.domElement, terrain, isMobile });
 
   stateMachine.registerController(CameraState.DESCENT, descentCtrl);
   stateMachine.registerController(CameraState.FREE_CAM, freeCtrl);

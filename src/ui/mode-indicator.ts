@@ -8,7 +8,7 @@ export interface ModeIndicator {
 const DESKTOP_MODE_TEXT: Record<CameraState, string> = {
   [CameraState.DESCENT]: 'ESC to skip',
   [CameraState.FREE_CAM]: 'WASD move · click blink · press escape for simple view',
-  [CameraState.FIXED_CAM]: 'ESC free camera',
+  [CameraState.FIXED_CAM]: 'Drag orbit · scroll zoom · ESC free camera',
 };
 
 const MOBILE_MODE_TEXT: Record<CameraState, string> = {

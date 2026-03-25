@@ -10,7 +10,7 @@ function mockCamera() {
   } as any;
 }
 
-describe('FixedCamController', () => {
+describe('FixedCamController (mobile)', () => {
   let camera: any;
   let listeners: Record<string, (e: any) => void>;
   let domElement: any;
@@ -39,6 +39,7 @@ describe('FixedCamController', () => {
       terrain: {
         getHeightAt: vi.fn(() => CONFIG.TERRAIN_Y_OFFSET),
       } as any,
+      isMobile: true,
     });
   });
 
@@ -85,7 +86,7 @@ describe('FixedCamController', () => {
     expect(camera.position.x).not.toBeCloseTo(heldX, 2);
   });
 
-  it('pinch gesture clamps orbit radius', () => {
+  it('pinch gesture clamps orbit radius within range', () => {
     ctrl.activate(camera);
 
     listeners.touchstart({
@@ -134,5 +135,111 @@ describe('FixedCamController', () => {
     });
 
     expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+});
+
+describe('FixedCamController (desktop)', () => {
+  let camera: any;
+  let domListeners: Record<string, (e: any) => void>;
+  let docListeners: Record<string, (e: any) => void>;
+  let domElement: any;
+  let ctrl: ReturnType<typeof createFixedCamController>;
+
+  beforeEach(() => {
+    domListeners = {};
+    docListeners = {};
+    domElement = {
+      addEventListener: vi.fn((name: string, cb: (e: any) => void) => {
+        domListeners[name] = cb;
+      }),
+      removeEventListener: vi.fn((name: string) => {
+        delete domListeners[name];
+      }),
+      closest: vi.fn(() => null),
+      classList: { contains: vi.fn(() => false) },
+    };
+
+    camera = mockCamera();
+
+    vi.stubGlobal('document', {
+      addEventListener: vi.fn((name: string, cb: (e: any) => void) => {
+        docListeners[name] = cb;
+      }),
+      removeEventListener: vi.fn(),
+    });
+
+    vi.stubGlobal('window', {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+
+    ctrl = createFixedCamController({
+      domElement,
+      terrain: {
+        getHeightAt: vi.fn(() => CONFIG.TERRAIN_Y_OFFSET),
+      } as any,
+      isMobile: false,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('activate registers mouse and wheel listeners for desktop', () => {
+    ctrl.activate(camera);
+    expect(domElement.addEventListener).toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(domElement.addEventListener).toHaveBeenCalledWith('wheel', expect.any(Function), { passive: false });
+    expect(document.addEventListener).toHaveBeenCalledWith('mousemove', expect.any(Function));
+    expect(document.addEventListener).toHaveBeenCalledWith('mouseup', expect.any(Function));
+  });
+
+  it('desktop defaults to birds-eye radius', () => {
+    ctrl.activate(camera);
+    ctrl.update(camera, 0.016, 0);
+
+    // Camera should be far out at the desktop default radius
+    const distToFocal = Math.hypot(
+      camera.position.x,
+      camera.position.y - (CONFIG.TERRAIN_Y_OFFSET + 5),
+      camera.position.z,
+    );
+    expect(distToFocal).toBeCloseTo(CONFIG.FIXED_CAM_DESKTOP_DEFAULT_RADIUS, 0);
+  });
+
+  it('mouse drag updates orbit yaw', () => {
+    ctrl.activate(camera);
+    ctrl.update(camera, 0.016, 0);
+    const beforeX = camera.position.x;
+
+    domListeners.mousedown({ button: 0, clientX: 200, clientY: 200, target: domElement });
+    docListeners.mousemove({ clientX: 300, clientY: 200 });
+    ctrl.update(camera, 0.016, 0.016);
+
+    expect(camera.position.x).not.toBeCloseTo(beforeX, 3);
+  });
+
+  it('scroll wheel zooms and calls preventDefault', () => {
+    ctrl.activate(camera);
+    ctrl.update(camera, 0.016, 0);
+    const beforeDist = Math.hypot(
+      camera.position.x,
+      camera.position.y - (CONFIG.TERRAIN_Y_OFFSET + 5),
+      camera.position.z,
+    );
+
+    const preventDefaultSpy = vi.fn();
+    domListeners.wheel({ deltaY: 100, preventDefault: preventDefaultSpy });
+    ctrl.update(camera, 0.016, 0.032);
+
+    const afterDist = Math.hypot(
+      camera.position.x,
+      camera.position.y - (CONFIG.TERRAIN_Y_OFFSET + 5),
+      camera.position.z,
+    );
+
+    expect(preventDefaultSpy).toHaveBeenCalled();
+    expect(afterDist).toBeGreaterThan(beforeDist);
   });
 });
