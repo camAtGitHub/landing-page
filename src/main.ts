@@ -36,10 +36,11 @@ import './structures/generators/architecture';
   const loading = createLoadingScreen();
   loading.show();
 
-  const entries = await loadSiteData().catch((err: Error) => {
+  const siteData = await loadSiteData().catch((err: Error) => {
     console.error('Failed to load data.json:', err);
-    return [];
+    return { config: { randomize: false }, entries: [] };
   });
+  const entries = siteData.entries;
 
   const terrain = createTerrain(ctx.scene);
   const sky = createSky(ctx.scene);
@@ -48,7 +49,7 @@ import './structures/generators/architecture';
   const stateMachine = new CameraStateMachine(ctx.camera, isMobile);
 
   const descentCtrl = createDescentController({ sky, scene: ctx.scene, fog });
-  const freeCtrl = createFreeCamController(terrain);
+  const freeCtrl = createFreeCamController(terrain, ctx.scene);
   const fixedCtrl = createFixedCamController({ domElement: ctx.renderer.domElement, terrain });
 
   stateMachine.registerController(CameraState.DESCENT, descentCtrl);
@@ -70,8 +71,8 @@ import './structures/generators/architecture';
   });
 
   const hud = createDescentHUD(stateMachine);
-  createModeIndicator(stateMachine, isMobile);
-  createControlHints(stateMachine, isMobile);
+  const controlHints = createControlHints(stateMachine, isMobile);
+  createModeIndicator(stateMachine, isMobile, () => controlHints.reshow());
 
   const ambientParticles = createAmbientParticles(ctx.scene);
   const structureParticles = createStructureParticles(instances, ctx.scene);

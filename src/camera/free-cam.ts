@@ -3,7 +3,113 @@ import { CameraController } from './state-machine';
 import { TerrainContext } from '../scene/terrain';
 import { CONFIG } from '../config';
 
-export function createFreeCamController(terrain: TerrainContext): CameraController {
+interface StreakEffect {
+  group: THREE.Group;
+  lines: THREE.Line[];
+  startTime: number;
+  duration: number;
+  direction: THREE.Vector3;
+}
+
+function createStreakLines(
+  scene: THREE.Scene,
+  camera: THREE.PerspectiveCamera,
+  direction: THREE.Vector3,
+  lineCount: number,
+): StreakEffect {
+  const group = new THREE.Group();
+  const lines: THREE.Line[] = [];
+
+  const streakColor = new THREE.Color(0x00ffc8);
+  const material = new THREE.LineBasicMaterial({
+    color: streakColor,
+    transparent: true,
+    opacity: 0.6,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  // Generate streak lines around the camera's field of view
+  for (let i = 0; i < lineCount; i++) {
+    // Random angle around the camera's forward axis
+    const theta = Math.random() * Math.PI * 2;
+    // Bias radius toward edges (peripheral streaks look best)
+    const radius = 1.5 + Math.random() * 4.5;
+    const length = 3 + Math.random() * 8;
+
+    // Position relative to camera, offset to side/above/below
+    const right = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0, 1, 0)).normalize();
+    const up = new THREE.Vector3().crossVectors(right, direction).normalize();
+
+    const offsetX = Math.cos(theta) * radius;
+    const offsetY = Math.sin(theta) * radius;
+
+    const startOffset = right.clone().multiplyScalar(offsetX).add(up.clone().multiplyScalar(offsetY));
+
+    // The line extends backward from the streak start point
+    const startPt = camera.position.clone().add(startOffset).add(direction.clone().multiplyScalar(2 + Math.random() * 5));
+    const endPt = startPt.clone().sub(direction.clone().multiplyScalar(length));
+
+    const geometry = new THREE.BufferGeometry().setFromPoints([startPt, endPt]);
+    const line = new THREE.Line(geometry, material.clone());
+    lines.push(line);
+    group.add(line);
+  }
+
+  scene.add(group);
+
+  return {
+    group,
+    lines,
+    startTime: performance.now(),
+    duration: CONFIG.FREE_CAM_BLINK_STREAK_DURATION_MS,
+    direction: direction.clone(),
+  };
+}
+
+function updateStreakEffect(effect: StreakEffect): boolean {
+  const elapsed = performance.now() - effect.startTime;
+  const t = Math.min(1, elapsed / effect.duration);
+
+  // Fade in fast, hold, then fade out
+  let opacity: number;
+  if (t < 0.15) {
+    opacity = t / 0.15; // Quick ramp up
+  } else if (t < 0.5) {
+    opacity = 1.0; // Hold
+  } else {
+    opacity = 1.0 - (t - 0.5) / 0.5; // Fade out
+  }
+
+  // Stretch lines backward over time for "rushing forward" feel
+  const stretch = t * 2.0;
+
+  for (const line of effect.lines) {
+    const mat = line.material as THREE.LineBasicMaterial;
+    mat.opacity = opacity * 0.6;
+
+    const posAttr = line.geometry.attributes.position as THREE.BufferAttribute;
+    const arr = posAttr.array as Float32Array;
+
+    // Move end point (index 1) further back along the direction
+    arr[3] -= effect.direction.x * stretch * 0.3;
+    arr[4] -= effect.direction.y * stretch * 0.3;
+    arr[5] -= effect.direction.z * stretch * 0.3;
+    posAttr.needsUpdate = true;
+  }
+
+  return t >= 1;
+}
+
+function disposeStreakEffect(effect: StreakEffect, scene: THREE.Scene): void {
+  for (const line of effect.lines) {
+    line.geometry.dispose();
+    (line.material as THREE.LineBasicMaterial).dispose();
+  }
+  scene.remove(effect.group);
+}
+
+export function createFreeCamController(terrain: TerrainContext, scene?: THREE.Scene): CameraController {
   let yaw = 0;
   let pitch = 0;
   let lastMouseX = -1;
@@ -15,6 +121,8 @@ export function createFreeCamController(terrain: TerrainContext): CameraControll
   let targetHeight = CONFIG.TERRAIN_Y_OFFSET + CONFIG.FREE_CAM_HEIGHT_ABOVE_TERRAIN;
   let currentHeight = targetHeight;
   let camera: THREE.PerspectiveCamera | null = null;
+
+  let activeStreak: StreakEffect | null = null;
 
   const keys: Record<string, boolean> = {};
 
@@ -72,6 +180,21 @@ export function createFreeCamController(terrain: TerrainContext): CameraControll
     blinkStartPos.copy(camera.position);
     blinkStartTime = performance.now();
     blinking = true;
+
+    // Launch streak effect if scene is available
+    if (scene && camera) {
+      // Clean up any lingering streak
+      if (activeStreak) {
+        disposeStreakEffect(activeStreak, scene);
+        activeStreak = null;
+      }
+      activeStreak = createStreakLines(
+        scene,
+        camera,
+        forward,
+        CONFIG.FREE_CAM_BLINK_STREAK_LINE_COUNT,
+      );
+    }
   };
 
   const activate = (cam: THREE.PerspectiveCamera): void => {
@@ -98,6 +221,13 @@ export function createFreeCamController(terrain: TerrainContext): CameraControll
   const deactivate = (): void => {
     camera = null;
     blinking = false;
+
+    // Clean up any active streak
+    if (activeStreak && scene) {
+      disposeStreakEffect(activeStreak, scene);
+      activeStreak = null;
+    }
+
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('keyup', onKeyUp);
@@ -105,11 +235,22 @@ export function createFreeCamController(terrain: TerrainContext): CameraControll
   };
 
   const update = (cam: THREE.PerspectiveCamera, delta: number, _elapsed: number): void => {
+    // Update streak effect
+    if (activeStreak && scene) {
+      const done = updateStreakEffect(activeStreak);
+      if (done) {
+        disposeStreakEffect(activeStreak, scene);
+        activeStreak = null;
+      }
+    }
+
     if (blinking) {
       const now = performance.now();
       const t = Math.min(1, (now - blinkStartTime) / CONFIG.FREE_CAM_BLINK_DURATION_MS);
-      cam.position.x = blinkStartPos.x + (blinkTargetPos.x - blinkStartPos.x) * t;
-      cam.position.z = blinkStartPos.z + (blinkTargetPos.z - blinkStartPos.z) * t;
+      // Ease-out for a "burst forward then decelerate" feel
+      const eased = 1 - Math.pow(1 - t, 3);
+      cam.position.x = blinkStartPos.x + (blinkTargetPos.x - blinkStartPos.x) * eased;
+      cam.position.z = blinkStartPos.z + (blinkTargetPos.z - blinkStartPos.z) * eased;
       if (t >= 1) blinking = false;
     } else {
       if (keys['arrowleft']) {

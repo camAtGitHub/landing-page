@@ -8,8 +8,6 @@ export interface FixedCamControllerOptions {
   terrain: TerrainContext;
 }
 
-const FIXED_CAM_PITCH_MIN = -0.4;
-const FIXED_CAM_PITCH_MAX = 0.4;
 const FIXED_CAM_MIN_CAMERA_CLEARANCE = 3;
 
 export function createFixedCamController(options: FixedCamControllerOptions): CameraController {
@@ -30,19 +28,6 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
   let pinchActive = false;
   let pinchLastDist = 0;
   let currentRadius: number = CONFIG.FIXED_CAM_ORBIT_RADIUS;
-
-  let lastTapTime = 0;
-  let lastTapX = 0;
-  let lastTapY = 0;
-
-  let blinkActive = false;
-  let blinkStartTime = 0;
-  let blinkStartYaw = 0;
-  let blinkStartPitch = 0;
-  let blinkStartRadius = 0;
-  let blinkTargetYaw = 0;
-  let blinkTargetPitch = 0;
-  let blinkTargetRadius = 0;
 
   let orientationYaw = 0;
   let orientationPitch = 0;
@@ -79,47 +64,6 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
     orientationPitch = beta / 45;
   };
 
-  const handleDoubleTap = (clientX: number, clientY: number): void => {
-    const hit = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
-    const label = hit?.closest('.entry-label') as HTMLElement | null;
-    if (!label) return;
-
-    const worldX = Number(label.dataset.worldX);
-    const worldZ = Number(label.dataset.worldZ);
-    if (!Number.isFinite(worldX) || !Number.isFinite(worldZ)) return;
-
-    const worldY = terrain.getHeightAt(worldX, worldZ) + CONFIG.FREE_CAM_HEIGHT_ABOVE_TERRAIN;
-
-    const dx = worldX - focalPoint.x;
-    const dz = worldZ - focalPoint.z;
-    const dy = worldY - focalPoint.y;
-
-    const horizontalDist = Math.hypot(dx, dz);
-    const sphericalDist = Math.hypot(horizontalDist, dy);
-    if (sphericalDist < 0.0001) return;
-
-    const targetYaw = Math.atan2(dx, dz);
-    const targetPitch = THREE.MathUtils.clamp(Math.asin(dy / sphericalDist), FIXED_CAM_PITCH_MIN, FIXED_CAM_PITCH_MAX);
-    const targetRadius = THREE.MathUtils.clamp(
-      sphericalDist + 4,
-      CONFIG.FIXED_CAM_ORBIT_RADIUS_MIN,
-      CONFIG.FIXED_CAM_ORBIT_RADIUS_MAX,
-    );
-
-    blinkStartYaw = manualYaw;
-    blinkStartPitch = manualPitch;
-    blinkStartRadius = currentRadius;
-
-    blinkTargetYaw = targetYaw;
-    blinkTargetPitch = targetPitch;
-    blinkTargetRadius = targetRadius;
-
-    blinkActive = true;
-    blinkStartTime = performance.now();
-    clearResumeTimer();
-    autoOrbitEnabled = false;
-  };
-
   const onTouchStart = (e: TouchEvent): void => {
     if (e.touches.length === 2) {
       pinchActive = true;
@@ -141,6 +85,11 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
   };
 
   const onTouchMove = (e: TouchEvent): void => {
+    // Prevent browser zoom/scroll when pinching inside the 3D view
+    if (e.touches.length >= 2) {
+      e.preventDefault();
+    }
+
     if (pinchActive && e.touches.length === 2) {
       const dist = getTouchDistance(e.touches);
       const delta = pinchLastDist - dist;
@@ -165,30 +114,10 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
 
     manualYaw += dx * CONFIG.FIXED_CAM_DRAG_SENSITIVITY;
     manualPitch -= dy * CONFIG.FIXED_CAM_DRAG_SENSITIVITY;
-    manualPitch = THREE.MathUtils.clamp(manualPitch, FIXED_CAM_PITCH_MIN, FIXED_CAM_PITCH_MAX);
+    manualPitch = THREE.MathUtils.clamp(manualPitch, CONFIG.FIXED_CAM_PITCH_MIN, CONFIG.FIXED_CAM_PITCH_MAX);
   };
 
   const onTouchEnd = (e: TouchEvent): void => {
-    const changedTouch = e.changedTouches[0];
-    if (changedTouch) {
-      const now = Date.now();
-      const dx = Math.abs(changedTouch.clientX - lastTapX);
-      const dy = Math.abs(changedTouch.clientY - lastTapY);
-      const isDoubleTap =
-        now - lastTapTime < CONFIG.FIXED_CAM_DOUBLE_TAP_MAX_MS &&
-        dx < CONFIG.FIXED_CAM_DOUBLE_TAP_MAX_PX &&
-        dy < CONFIG.FIXED_CAM_DOUBLE_TAP_MAX_PX;
-
-      lastTapTime = now;
-      lastTapX = changedTouch.clientX;
-      lastTapY = changedTouch.clientY;
-
-      if (isDoubleTap) {
-        handleDoubleTap(changedTouch.clientX, changedTouch.clientY);
-        lastTapTime = 0;
-      }
-    }
-
     if (e.touches.length === 2) {
       pinchActive = true;
       dragActive = false;
@@ -231,7 +160,7 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
     const radius = Math.max(0.001, Math.hypot(horizontal, dy));
 
     manualYaw = Math.atan2(dx, dz);
-    manualPitch = THREE.MathUtils.clamp(Math.asin(dy / radius), FIXED_CAM_PITCH_MIN, FIXED_CAM_PITCH_MAX);
+    manualPitch = THREE.MathUtils.clamp(Math.asin(dy / radius), CONFIG.FIXED_CAM_PITCH_MIN, CONFIG.FIXED_CAM_PITCH_MAX);
     orbitYaw = manualYaw;
     currentRadius = Math.max(
       CONFIG.FIXED_CAM_ORBIT_RADIUS_MIN,
@@ -241,11 +170,11 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
     autoOrbitEnabled = true;
     dragActive = false;
     pinchActive = false;
-    blinkActive = false;
     clearResumeTimer();
 
     domElement.addEventListener('touchstart', onTouchStart, { passive: true });
-    domElement.addEventListener('touchmove', onTouchMove, { passive: true });
+    // passive: false is critical — allows e.preventDefault() to block browser pinch-zoom
+    domElement.addEventListener('touchmove', onTouchMove, { passive: false });
     domElement.addEventListener('touchend', onTouchEnd, { passive: true });
     domElement.addEventListener('touchcancel', onTouchCancel, { passive: true });
     window.addEventListener('deviceorientation', onDeviceOrientation);
@@ -254,7 +183,6 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
   const deactivate = (): void => {
     dragActive = false;
     pinchActive = false;
-    blinkActive = false;
     clearResumeTimer();
 
     domElement.removeEventListener('touchstart', onTouchStart);
@@ -265,19 +193,7 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
   };
 
   const update = (camera: THREE.PerspectiveCamera, delta: number, _elapsed: number): void => {
-    if (blinkActive) {
-      const now = performance.now();
-      const t = Math.min(1, (now - blinkStartTime) / CONFIG.FIXED_CAM_BLINK_DURATION);
-      const eased = 1 - Math.pow(1 - t, 3);
-      manualYaw = THREE.MathUtils.lerp(blinkStartYaw, blinkTargetYaw, eased);
-      manualPitch = THREE.MathUtils.lerp(blinkStartPitch, blinkTargetPitch, eased);
-      currentRadius = blinkStartRadius + (blinkTargetRadius - blinkStartRadius) * eased;
-
-      if (t >= 1) {
-        blinkActive = false;
-        startResumeOrbitTimer();
-      }
-    } else if (!dragActive && !resumeOrbitTimer && autoOrbitEnabled) {
+    if (!dragActive && !resumeOrbitTimer && autoOrbitEnabled) {
       orbitYaw += CONFIG.FIXED_CAM_ORBIT_SPEED * delta;
       manualYaw = orbitYaw;
     }
@@ -285,8 +201,8 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
     const yaw = manualYaw + orientationYaw * CONFIG.FIXED_CAM_PARALLAX_STRENGTH * 0.03;
     const pitch = THREE.MathUtils.clamp(
       manualPitch + orientationPitch * CONFIG.FIXED_CAM_PARALLAX_STRENGTH * 0.01,
-      FIXED_CAM_PITCH_MIN,
-      FIXED_CAM_PITCH_MAX,
+      CONFIG.FIXED_CAM_PITCH_MIN,
+      CONFIG.FIXED_CAM_PITCH_MAX,
     );
 
     camera.position.x = focalPoint.x + currentRadius * Math.cos(pitch) * Math.sin(yaw);

@@ -14,11 +14,31 @@ export function hashString(str: string): number {
   return Math.abs(hash);
 }
 
+/** Runtime config parsed from data.json */
+export interface SiteConfig {
+  randomize: boolean;
+}
+
+/** Full result from loading data.json */
+export interface SiteData {
+  config: SiteConfig;
+  entries: DataEntry[];
+}
+
+const DEFAULT_CONFIG: SiteConfig = {
+  randomize: false,
+};
+
 /**
  * Fetches data.json, validates entries, applies defaults.
- * Returns array sorted by priority descending.
+ *
+ * Supports two formats:
+ *   - Legacy: bare array of entries   → [ { name, url, ... }, ... ]
+ *   - New:    object with config      → { config: { randomize: true }, entries: [...] }
+ *
+ * Returns SiteData with config and entries sorted by priority descending.
  */
-export async function loadSiteData(): Promise<DataEntry[]> {
+export async function loadSiteData(): Promise<SiteData> {
   let raw: unknown;
   try {
     const response = await fetch('./data.json');
@@ -31,14 +51,38 @@ export async function loadSiteData(): Promise<DataEntry[]> {
     throw new Error('Failed to parse data.json');
   }
 
-  if (!Array.isArray(raw)) {
-    throw new Error('data.json must be an array');
+  // Determine format: bare array (legacy) or object with config + entries
+  let rawEntries: unknown[];
+  let config: SiteConfig = { ...DEFAULT_CONFIG };
+
+  if (Array.isArray(raw)) {
+    // Legacy format — plain array of entries
+    rawEntries = raw;
+  } else if (typeof raw === 'object' && raw !== null) {
+    const obj = raw as Record<string, unknown>;
+
+    // Parse config section
+    if (typeof obj.config === 'object' && obj.config !== null) {
+      const rawConfig = obj.config as Record<string, unknown>;
+      if (typeof rawConfig.randomize === 'boolean') {
+        config.randomize = rawConfig.randomize;
+      }
+    }
+
+    // Parse entries
+    if (Array.isArray(obj.entries)) {
+      rawEntries = obj.entries;
+    } else {
+      throw new Error('data.json object must contain an "entries" array');
+    }
+  } else {
+    throw new Error('data.json must be an array or an object with "entries"');
   }
 
   const validated: DataEntry[] = [];
   let typeIndex = 0;
 
-  for (const item of raw) {
+  for (const item of rawEntries) {
     if (typeof item !== 'object' || item === null) {
       console.warn('Skipping invalid entry:', item);
       continue;
@@ -81,5 +125,14 @@ export async function loadSiteData(): Promise<DataEntry[]> {
     validated.push(dataEntry);
   }
 
-  return validated.sort((a, b) => b.priority - a.priority);
+  const entries = validated.sort((a, b) => b.priority - a.priority);
+
+  // Apply randomization if enabled
+  if (config.randomize) {
+    entries.forEach(e => {
+      e.seed = Math.floor(Math.random() * 1000000);
+    });
+  }
+
+  return { config, entries };
 }

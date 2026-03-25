@@ -1,13 +1,15 @@
 import { CameraStateMachine } from '../camera/state-machine';
 import { CameraState } from '../types';
+import { CONFIG } from '../config';
 
 export interface ControlHints {
+  reshow: () => void;
   dispose: () => void;
 }
 
 export function createControlHints(stateMachine: CameraStateMachine, isMobile: boolean): ControlHints {
   const ui = document.getElementById('ui');
-  if (!ui) return { dispose: () => {} };
+  if (!ui) return { reshow: () => {}, dispose: () => {} };
 
   const style = document.createElement('style');
   style.textContent = `
@@ -33,6 +35,10 @@ export function createControlHints(stateMachine: CameraStateMachine, isMobile: b
     }
     .control-hints.visible {
       opacity: 1;
+    }
+    .control-hints.dismissable {
+      pointer-events: auto;
+      cursor: pointer;
     }
     .control-hints-row {
       display: flex;
@@ -69,8 +75,7 @@ export function createControlHints(stateMachine: CameraStateMachine, isMobile: b
       <span><strong>Pinch</strong> Zoom</span>
     </div>
     <div class="control-hints-row">
-      <span class="control-hints-highlight"><strong>Double tap</strong> label to blink</span>
-      <span><strong>Hold 2.5s</strong> skip descent</span>
+      <span class="control-hints-highlight"><strong>Tap</strong> label to open page</span>
     </div>
   `;
 
@@ -109,6 +114,7 @@ export function createControlHints(stateMachine: CameraStateMachine, isMobile: b
     document.removeEventListener('keydown', dismissOnInput);
     document.removeEventListener('mousedown', dismissOnInput);
     document.removeEventListener('touchstart', dismissOnInput);
+    el.removeEventListener('click', dismissOnInput);
   };
 
   const dismiss = (): void => {
@@ -120,14 +126,19 @@ export function createControlHints(stateMachine: CameraStateMachine, isMobile: b
 
     el.style.transition = 'opacity 0.4s ease';
     el.classList.remove('visible');
+    el.classList.remove('dismissable');
     hideTimeout = setTimeout(() => {
       el.style.display = 'none';
     }, 400);
   };
 
   const show = (): void => {
-    if (shown || disposed) return;
+    if (disposed) return;
+
+    // Reset dismissed state to allow re-showing
+    dismissed = false;
     shown = true;
+    clearTimers();
 
     el.style.display = 'block';
     showTimeout = setTimeout(() => {
@@ -135,15 +146,36 @@ export function createControlHints(stateMachine: CameraStateMachine, isMobile: b
       if (dismissed || disposed) return;
       el.style.transition = 'opacity 0.5s ease';
       el.classList.add('visible');
+
+      // On mobile, make the hints tappable to dismiss
+      if (isMobile) {
+        el.classList.add('dismissable');
+        el.addEventListener('click', dismissOnInput, { once: true });
+      }
     }, 300);
 
     dismissTimeout = setTimeout(() => {
       dismiss();
-    }, 8000);
+    }, CONFIG.HELP_HINT_AUTO_DISMISS_MS);
 
     document.addEventListener('keydown', dismissOnInput);
     document.addEventListener('mousedown', dismissOnInput);
     document.addEventListener('touchstart', dismissOnInput, { passive: true });
+  };
+
+  const reshow = (): void => {
+    if (disposed) return;
+    // Force reset so hints can appear again
+    dismissed = false;
+    shown = false;
+    clearTimers();
+    removeInputListeners();
+    el.classList.remove('visible');
+    el.classList.remove('dismissable');
+    el.style.display = 'none';
+
+    // Small delay then show fresh
+    setTimeout(() => show(), 50);
   };
 
   stateMachine.onStateChange((_newState, oldState) => {
@@ -162,5 +194,5 @@ export function createControlHints(stateMachine: CameraStateMachine, isMobile: b
     style.remove();
   };
 
-  return { dispose };
+  return { reshow, dispose };
 }

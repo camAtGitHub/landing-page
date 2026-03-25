@@ -29,10 +29,6 @@ describe('FixedCamController', () => {
 
     camera = mockCamera();
 
-    vi.stubGlobal('document', {
-      elementFromPoint: vi.fn(() => null),
-    });
-
     vi.stubGlobal('window', {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -54,7 +50,7 @@ describe('FixedCamController', () => {
   it('activate registers touch listeners on renderer element', () => {
     ctrl.activate(camera);
     expect(domElement.addEventListener).toHaveBeenCalledWith('touchstart', expect.any(Function), { passive: true });
-    expect(domElement.addEventListener).toHaveBeenCalledWith('touchmove', expect.any(Function), { passive: true });
+    expect(domElement.addEventListener).toHaveBeenCalledWith('touchmove', expect.any(Function), { passive: false });
     expect(domElement.addEventListener).toHaveBeenCalledWith('touchend', expect.any(Function), { passive: true });
     expect(domElement.addEventListener).toHaveBeenCalledWith('touchcancel', expect.any(Function), { passive: true });
   });
@@ -65,7 +61,7 @@ describe('FixedCamController', () => {
     const beforeX = camera.position.x;
 
     listeners.touchstart({ touches: [{ clientX: 100, clientY: 120, identifier: 1 }] });
-    listeners.touchmove({ touches: [{ clientX: 180, clientY: 120, identifier: 1 }] });
+    listeners.touchmove({ touches: [{ clientX: 180, clientY: 120, identifier: 1 }], preventDefault: vi.fn() });
     ctrl.update(camera, 0.016, 0.016);
 
     expect(camera.position.x).not.toBeCloseTo(beforeX, 3);
@@ -76,7 +72,7 @@ describe('FixedCamController', () => {
     ctrl.activate(camera);
 
     listeners.touchstart({ touches: [{ clientX: 100, clientY: 100, identifier: 1 }] });
-    listeners.touchmove({ touches: [{ clientX: 240, clientY: 100, identifier: 1 }] });
+    listeners.touchmove({ touches: [{ clientX: 240, clientY: 100, identifier: 1 }], preventDefault: vi.fn() });
     ctrl.update(camera, 0.016, 0.016);
     const heldX = camera.position.x;
 
@@ -104,6 +100,7 @@ describe('FixedCamController', () => {
         { clientX: 100, clientY: 100, identifier: 1 },
         { clientX: 105, clientY: 100, identifier: 2 },
       ],
+      preventDefault: vi.fn(),
     });
 
     ctrl.update(camera, 0.016, 0);
@@ -117,26 +114,25 @@ describe('FixedCamController', () => {
     expect(distToFocal).toBeGreaterThanOrEqual(CONFIG.FIXED_CAM_ORBIT_RADIUS_MIN - 0.5);
   });
 
-  it('double tap on label triggers blink orbit reposition', () => {
-    vi.spyOn(performance, 'now')
-      .mockReturnValueOnce(100)
-      .mockReturnValueOnce(250)
-      .mockReturnValueOnce(550);
-
-    const label = {
-      dataset: { worldX: '18', worldZ: '12' },
-      closest: vi.fn().mockReturnThis(),
-    } as any;
-
-    (document.elementFromPoint as any).mockReturnValue(label);
-
+  it('pinch gesture calls preventDefault to block browser zoom', () => {
     ctrl.activate(camera);
-    const startX = camera.position.x;
 
-    listeners.touchend({ touches: [], changedTouches: [{ clientX: 200, clientY: 200 }] });
-    listeners.touchend({ touches: [], changedTouches: [{ clientX: 205, clientY: 205 }] });
-    ctrl.update(camera, 0.016, 0.016);
+    listeners.touchstart({
+      touches: [
+        { clientX: 100, clientY: 100, identifier: 1 },
+        { clientX: 300, clientY: 100, identifier: 2 },
+      ],
+    });
 
-    expect(camera.position.x).not.toBeCloseTo(startX, 3);
+    const preventDefaultSpy = vi.fn();
+    listeners.touchmove({
+      touches: [
+        { clientX: 100, clientY: 100, identifier: 1 },
+        { clientX: 250, clientY: 100, identifier: 2 },
+      ],
+      preventDefault: preventDefaultSpy,
+    });
+
+    expect(preventDefaultSpy).toHaveBeenCalled();
   });
 });

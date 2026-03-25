@@ -1,46 +1,51 @@
-[
-  {
-    "name": "Blog",
-    "description": "Infrastructure, security & building things",
-    "url": "/blog",
-    "priority": 10,
-    "type": "architecture",
-    "seed": 42
+{
+  "config": {
+    "randomize": true
   },
-  {
-    "name": "GitHub",
-    "description": "Open source projects & contributions",
-    "url": "https://github.com/camAtGitHub",
-    "priority": 7,
-    "type": "geometric",
-    "seed": 77
-  },
-  {
-    "name": "YT Channel Analyzer",
-    "description": "Algorithmic analysis of YouTube channel performance",
-    "url": "/tools/yt-analyzer",
-    "priority": 6,
-    "type": "vortex"
-  },
-  {
-    "name": "JSON Explorer",
-    "description": "Validate & explore nested JSON datasets",
-    "url": "/tools/json-explorer",
-    "priority": 5,
-    "type": "crystal"
-  },
-  {
-    "name": "Bookmark Merger",
-    "description": "Cross-browser bookmark cleanup tool",
-    "url": "/tools/bookmark-merger",
-    "priority": 4,
-    "type": "mushroom"
-  },
-  {
-    "name": "Contact",
-    "description": "Get in touch — no email required",
-    "url": "/contact",
-    "priority": 3,
-    "type": "flora"
-  }
-]
+  "entries": [
+    {
+      "name": "Blog",
+      "description": "Infrastructure, security & building things",
+      "url": "/blog",
+      "priority": 10,
+      "type": "architecture",
+      "seed": 42
+    },
+    {
+      "name": "GitHub",
+      "description": "Open source projects & contributions",
+      "url": "https://github.com/camAtGitHub",
+      "priority": 7,
+      "type": "geometric",
+      "seed": 77
+    },
+    {
+      "name": "YT Channel Analyzer",
+      "description": "Algorithmic analysis of YouTube channel performance",
+      "url": "/tools/yt-analyzer",
+      "priority": 6,
+      "type": "vortex"
+    },
+    {
+      "name": "JSON Explorer",
+      "description": "Validate & explore nested JSON datasets",
+      "url": "/tools/json-explorer",
+      "priority": 5,
+      "type": "crystal"
+    },
+    {
+      "name": "Bookmark Merger",
+      "description": "Cross-browser bookmark cleanup tool",
+      "url": "/tools/bookmark-merger",
+      "priority": 4,
+      "type": "mushroom"
+    },
+    {
+      "name": "Contact",
+      "description": "Get in touch — no email required",
+      "url": "/contact",
+      "priority": 3,
+      "type": "flora"
+    }
+  ]
+}
