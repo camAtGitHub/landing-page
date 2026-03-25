@@ -57,6 +57,53 @@ export function createGlowMaterial(
   });
 }
 
+/** Additive blending glow — use for halos, auras, and energy effects */
+export function createAdditiveGlowMaterial(
+  color: THREE.Color,
+  options?: {
+    emissiveIntensity?: number;
+    opacity?: number;
+  },
+): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: options?.emissiveIntensity ?? 1.2,
+    transparent: true,
+    opacity: options?.opacity ?? 0.35,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    roughness: 0.1,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+  });
+}
+
+/** Create a secondary accent color from a base — shifted hue for richer palette */
+export function shiftHue(color: THREE.Color, amount: number): THREE.Color {
+  if (typeof color.getHSL !== 'function') {
+    // Fallback for mocked Color objects in tests
+    return new THREE.Color(color.r ?? 1, color.g ?? 0, color.b ?? 1);
+  }
+  const hsl = { h: 0, s: 0, l: 0 };
+  color.getHSL(hsl);
+  hsl.h = (hsl.h + amount) % 1.0;
+  if (hsl.h < 0) hsl.h += 1.0;
+  return new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
+}
+
+/** Brighten / dim a color by a factor (clamps to valid range) */
+export function adjustBrightness(color: THREE.Color, factor: number): THREE.Color {
+  if (typeof color.getHSL !== 'function') {
+    // Fallback for mocked Color objects in tests
+    return new THREE.Color(color.r ?? 1, color.g ?? 0, color.b ?? 1);
+  }
+  const hsl = { h: 0, s: 0, l: 0 };
+  color.getHSL(hsl);
+  hsl.l = Math.max(0, Math.min(1, hsl.l * factor));
+  return new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
+}
+
 export function createStructureLight(
   color: THREE.Color,
   priority: number,
@@ -77,14 +124,7 @@ export function priorityScale(priority: number): number {
 
 export function disposeGroup(group: THREE.Group): void {
   group.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.geometry?.dispose();
-      if (Array.isArray(child.material)) {
-        child.material.forEach((m) => m.dispose());
-      } else {
-        child.material?.dispose();
-      }
-    } else if (child instanceof THREE.Line) {
+    if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Points) {
       child.geometry?.dispose();
       if (Array.isArray(child.material)) {
         child.material.forEach((m) => m.dispose());

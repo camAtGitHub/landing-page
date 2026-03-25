@@ -14,7 +14,7 @@ export function initScene(): SceneContext {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.RENDERER_PIXEL_RATIO_MAX));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 1.1;
   document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
   // Scene
@@ -32,16 +32,25 @@ export function initScene(): SceneContext {
   camera.position.set(0, CONFIG.DESCENT_START_Y, 0);
   camera.lookAt(0, -200, 0);
 
-  // Lighting
-  const ambientLight = new THREE.AmbientLight(0x111133, 1.0);
+  // === Lighting — tuned for bioluminescent structures ===
+
+  // Low ambient — let structure emissives dominate
+  const ambientLight = new THREE.AmbientLight(0x0a0a22, 0.6);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0x8800cc, 0.8);
-  dirLight.position.set(0, 100, 50);
+  // Deep purple overhead — alien atmosphere
+  const dirLight = new THREE.DirectionalLight(0x6600aa, 0.5);
+  dirLight.position.set(0, 120, 50);
   scene.add(dirLight);
 
-  const hemiLight = new THREE.HemisphereLight(0x001133, 0xff00aa, 0.3);
+  // Hemisphere: deep indigo sky + magenta ground bounce
+  const hemiLight = new THREE.HemisphereLight(0x0a0033, 0xff00aa, 0.4);
   scene.add(hemiLight);
+
+  // Subtle warm fill from below (ground reflections of neon)
+  const groundFill = new THREE.DirectionalLight(0x003322, 0.15);
+  groundFill.position.set(0, -50, 0);
+  scene.add(groundFill);
 
   // Resize handler
   const resize = (): void => {
