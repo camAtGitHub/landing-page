@@ -234,14 +234,15 @@ export function createFixedCamController(options: FixedCamControllerOptions): Ca
       orbitYaw = manualYaw;
       currentRadius = clampRadius(radius);
     } else {
-      // Desktop: birds-eye default
+      // Desktop: birds-eye default at max downward angle
       const dx = camera.position.x - focalPoint.x;
       const dz = camera.position.z - focalPoint.z;
       manualYaw = Math.atan2(dx, dz);
       orbitYaw = manualYaw;
       currentRadius = CONFIG.FIXED_CAM_DESKTOP_DEFAULT_RADIUS;
-      // manualPitch = 0 means "use zoom-linked pitch only, no manual offset"
-      manualPitch = 0;
+      // Set manual offset so total pitch = max (highest birds-eye angle)
+      const zoomBias = getZoomPitchBias(currentRadius);
+      manualPitch = CONFIG.FIXED_CAM_PITCH_MAX - zoomBias;
     }
 
     autoOrbitEnabled = true;
